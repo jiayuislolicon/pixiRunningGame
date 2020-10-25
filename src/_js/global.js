@@ -13,6 +13,7 @@ Loader
     .add('far', '/assets/images/bg-far.png')
     .add('mid', '/assets/images/bg-mid.png')
     .add('builds', '/assets/images/build.json')
+    .add('zombieWalk', '/assets/images/zombieWalk.json')
     .load(setup);
 
 let state, landscape, farBuild, midBuild, slice, slice2;
@@ -197,7 +198,7 @@ class main {
 // }
 
 function setup() {
-    
+
     landscape = new Container();
     app.stage.addChild(landscape)
 
@@ -219,6 +220,16 @@ function setup() {
 
     let front = new main();
     front.generateTestWallSpan();
+
+    let sheet = Loader.resources.zombieWalk.spritesheet;
+    let animatedZombie = new PIXI.AnimatedSprite(sheet.animations["zombie"]);
+    animatedZombie.animationSpeed = -0.167;
+    animatedZombie.play();
+    animatedZombie.position.x = 96;
+    animatedZombie.position.y = 80;
+    animatedZombie.scale.x = 0.3;
+    animatedZombie.scale.y = 0.3;
+    landscape.addChild(animatedZombie);
     
     state = play;
     app.ticker.add(delta => gameLoop(delta));

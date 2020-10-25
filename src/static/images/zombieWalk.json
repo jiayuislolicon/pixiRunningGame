@@ -1,0 +1,95 @@
+{"frames": {
+
+"zombie_1.png":
+{
+	"frame": {"x":0,"y":0,"w":198,"h":312},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":198,"h":312},
+	"sourceSize": {"w":198,"h":312}
+},
+"zombie_2.png":
+{
+	"frame": {"x":198,"y":0,"w":198,"h":312},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":198,"h":312},
+	"sourceSize": {"w":198,"h":312}
+},
+"zombie_3.png":
+{
+	"frame": {"x":396,"y":0,"w":198,"h":312},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":198,"h":312},
+	"sourceSize": {"w":198,"h":312}
+},
+"zombie_4.png":
+{
+	"frame": {"x":594,"y":0,"w":198,"h":312},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":198,"h":312},
+	"sourceSize": {"w":198,"h":312}
+},
+"zombie_5.png":
+{
+	"frame": {"x":792,"y":0,"w":198,"h":312},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":198,"h":312},
+	"sourceSize": {"w":198,"h":312}
+},
+"zombie_6.png":
+{
+	"frame": {"x":990,"y":0,"w":198,"h":312},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":198,"h":312},
+	"sourceSize": {"w":198,"h":312}
+},
+"zombie_7.png":
+{
+	"frame": {"x":1188,"y":0,"w":198,"h":312},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":198,"h":312},
+	"sourceSize": {"w":198,"h":312}
+},
+"zombie_8.png":
+{
+	"frame": {"x":1386,"y":0,"w":198,"h":312},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":198,"h":312},
+	"sourceSize": {"w":198,"h":312}
+},
+"zombie_9.png":
+{
+	"frame": {"x":1584,"y":0,"w":198,"h":312},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":198,"h":312},
+	"sourceSize": {"w":198,"h":312}
+},
+"zombie_10.png":
+{
+	"frame": {"x":1782,"y":0,"w":198,"h":312},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":198,"h":312},
+	"sourceSize": {"w":198,"h":312}
+}},
+"animations": {
+	"zombie": ["zombie_1.png","zombie_2.png","zombie_3.png","zombie_4.png","zombie_5.png","zombie_6.png","zombie_7.png","zombie_8.png","zombie_9.png","zombie_10.png"]
+},
+"meta": {
+	"app": "https://www.codeandweb.com/texturepacker",
+	"version": "1.0",
+	"image": "zombieWalk.png",
+	"format": "RGBA8888",
+	"size": {"w":1980,"h":312},
+	"scale": "1",
+	"smartupdate": "$TexturePacker:SmartUpdate:ba6c8fbd2df6e4fc4f93f3ce8683bd5f:d406d255df5cc088e938c9d9fe8813c9:2bb4b0fd9423b951ced50da275af2c7a$"
+}
+}
