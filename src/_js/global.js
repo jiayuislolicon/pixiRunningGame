@@ -1,4 +1,5 @@
 import * as PIXI from "pixi.js";
+// import keybroadEvent from './keybroadEvent'
 
 const app = new PIXI.Application({width: 512, height: 384});
 const Loader = new PIXI.Loader(),
@@ -16,7 +17,7 @@ Loader
     .add('zombieWalk', '/assets/images/zombieWalk.json')
     .load(setup);
 
-let state, landscape, farBuild, midBuild, slice, slice2;
+let state, landscape, farBuild, midBuild, front, zombie, kb;
 
 class wallSpritesPool {
     constructor() {
@@ -197,10 +198,83 @@ class main {
 //     }
 // }
 
+function hitTestRectangle(r1, r2) {
+
+    //Define the variables we'll need to calculate
+    let hit, combinedHalfWidths, combinedHalfHeights, vx, vy;
+  
+    //hit will determine whether there's a collision
+    hit = false;
+  
+    //Find the center points of each sprite
+    r1.centerX = r1.x + r1.width / 2;
+    r1.centerY = r1.y + r1.height / 2;
+    r2.centerX = r2.x + r2.width / 2;
+    r2.centerY = r2.y + r2.height / 2;
+  
+    //Find the half-widths and half-heights of each sprite
+    r1.halfWidth = r1.width / 2;
+    r1.halfHeight = r1.height / 2;
+    r2.halfWidth = r2.width / 2;
+    r2.halfHeight = r2.height / 2;
+  
+    //Calculate the distance vector between the sprites
+    vx = r1.centerX - r2.centerX;
+    vy = r1.centerY - r2.centerY;
+  
+    //Figure out the combined half-widths and half-heights
+    combinedHalfWidths = r1.halfWidth + r2.halfWidth;
+    combinedHalfHeights = r1.halfHeight + r2.halfHeight;
+  
+    //Check for a collision on the x axis
+    if (Math.abs(vx) < combinedHalfWidths) {
+  
+      //A collision might be occurring. Check for a collision on the y axis
+      if (Math.abs(vy) < combinedHalfHeights) {
+  
+        //There's definitely a collision happening
+        hit = true;
+      } else {
+  
+        //There's no collision on the y axis
+        hit = false;
+      }
+    } else {
+  
+      //There's no collision on the x axis
+      hit = false;
+    }
+  
+    //`hit` will be either `true` or `false`
+    return hit;
+};
+
+class keyboroad {
+    constructor() {
+        this.pressed = {};
+    }
+    watch () {
+        window.addEventListener('keydown', (e) => {
+            this.pressed[e.key] = true;
+        }, false);
+        window.addEventListener('keyup', (e) => {
+            this.pressed[e.key] = false;
+        }, false);
+    }
+}
+
+class testFar {
+    constructor() {
+        
+    }
+}
+
+
 function setup() {
 
     landscape = new Container();
     app.stage.addChild(landscape)
+
 
     farBuild = new TilingSprite(resources.far.texture, 512, 256);
     farBuild.position.x = 0;
@@ -218,19 +292,24 @@ function setup() {
         .addChild(farBuild)
         .addChild(midBuild)
 
-    let front = new main();
+    front = new main();
     front.generateTestWallSpan();
 
     let sheet = Loader.resources.zombieWalk.spritesheet;
-    let animatedZombie = new PIXI.AnimatedSprite(sheet.animations["zombie"]);
-    animatedZombie.animationSpeed = -0.167;
-    animatedZombie.play();
-    animatedZombie.position.x = 96;
-    animatedZombie.position.y = 80;
-    animatedZombie.scale.x = 0.3;
-    animatedZombie.scale.y = 0.3;
-    landscape.addChild(animatedZombie);
-    
+    zombie = new PIXI.AnimatedSprite(sheet.animations["zombie"]);
+    zombie.animationSpeed = -0.167;
+    zombie.x = 96;
+    zombie.y = 0;
+    zombie.vy = 0;
+    zombie.vx = 0;
+    zombie.scale.x = 0.3;
+    zombie.scale.y = 0.3;
+    zombie.play();
+    landscape.addChild(zombie);
+
+    kb = new keyboroad();
+    kb.watch();
+
     state = play;
     app.ticker.add(delta => gameLoop(delta));
 }
@@ -242,6 +321,27 @@ function gameLoop(delta) {
 function play(delta) {
     farBuild.tilePosition.x -= 0.128;
     midBuild.tilePosition.x -= 0.64;
+
+    // 給殭屍一個重力
+    zombie.vy = zombie.vy + 1;
+    zombie.x += zombie.vx;
+    zombie.y += zombie.vy;
+
+    if (zombie.vy > 0 && zombie.y > 80) {
+        for(let i = 0; i < zombie.vy; i++) {
+            zombie.vy = 0;
+            break;
+        }
+        zombie.y = 80;
+    }
+
+    if(zombie.y < 0) {
+        zombie.y -= zombie.vy;
+    }
+
+    if(kb.pressed.ArrowUp) {
+        zombie.vy = -10;
+    }
 }
 
 Loader.onError.add((error) => console.error(error));
