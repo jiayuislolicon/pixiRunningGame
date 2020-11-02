@@ -14,10 +14,13 @@ Loader
     .add('far', '/assets/images/bg-far.png')
     .add('mid', '/assets/images/bg-mid.png')
     .add('builds', '/assets/images/build.json')
-    .add('zombieWalk', '/assets/images/zombieWalk.json')
+    .add('dead', '/assets/images/dead.json')
+    .add('jump', '/assets/images/jump.json')
+    .add('run', '/assets/images/run.json')
+    .add('walk', '/assets/images/walk.json')
     .load(setup);
 
-let state, landscape, farBuild, midBuild, front, zombie, kb;
+let state, landscape, farBuild, midBuild, front, kb, girl;
 
 class wallSpritesPool {
     constructor() {
@@ -263,11 +266,6 @@ class keyboroad {
     }
 }
 
-class testFar {
-    constructor() {
-        
-    }
-}
 
 
 function setup() {
@@ -275,18 +273,21 @@ function setup() {
     landscape = new Container();
     app.stage.addChild(landscape)
 
-
     farBuild = new TilingSprite(resources.far.texture, 512, 256);
     farBuild.position.x = 0;
     farBuild.position.y = 0;
     farBuild.tilePosition.x = 0;
     farBuild.tilePosition.y = 0;
+    farBuild.viewPortX = 0;
+    farBuild.DELTA_X = 0.128;
 
     midBuild = new TilingSprite(resources.mid.texture, 512, 256);
     midBuild.position.x = 0;
     midBuild.position.y = 128;
     midBuild.tilePosition.x = 0;
     midBuild.tilePosition.y = 0;
+    midBuild.viewPortX = 0;
+    midBuild.DELTA_X = 0.64;
 
     landscape
         .addChild(farBuild)
@@ -295,23 +296,39 @@ function setup() {
     front = new main();
     front.generateTestWallSpan();
 
-    let sheet = Loader.resources.zombieWalk.spritesheet;
-    zombie = new PIXI.AnimatedSprite(sheet.animations["zombie"]);
-    zombie.animationSpeed = -0.167;
-    zombie.x = 96;
-    zombie.y = 0;
-    zombie.vy = 0;
-    zombie.vx = 0;
-    zombie.scale.x = 0.3;
-    zombie.scale.y = 0.3;
-    zombie.play();
-    landscape.addChild(zombie);
+    let deadSheet = Loader.resources.dead.spritesheet;
+    let runSheet = Loader.resources.run.spritesheet;
+    let walkSheet = Loader.resources.walk.spritesheet;
+    let jumpSheet = Loader.resources.jump.spritesheet;
+
+    console.log(walkSheet)
+    // girl = new PIXI.AnimatedSprite(walkSheet.animations["zombie"]);
+    // zombie.animationSpeed = -0.167;
+    // zombie.x = 96;
+    // zombie.y = 0;
+    // zombie.vy = 0;
+    // zombie.vx = 0;
+    // zombie.scale.x = 0.3;
+    // zombie.scale.y = 0.3;
+    // zombie.play();
+    // landscape.addChild(zombie);
 
     kb = new keyboroad();
     kb.watch();
 
     state = play;
     app.ticker.add(delta => gameLoop(delta));
+}
+
+function setFarViewPortX(newViewPortX, target) {
+    let distanceTravelled = newViewPortX - target.viewPortX;
+    target.viewPortX = newViewPortX;
+    target.tilePosition.x -= (distanceTravelled * target.DELTA_X);
+}
+
+function setViewPortX(viewPortX) {
+    farBuild.setViewPortX(viewPortX);
+    midBuild.setViewPortX(viewPortX);
 }
 
 function gameLoop(delta) {
@@ -323,25 +340,25 @@ function play(delta) {
     midBuild.tilePosition.x -= 0.64;
 
     // 給殭屍一個重力
-    zombie.vy = zombie.vy + 1;
-    zombie.x += zombie.vx;
-    zombie.y += zombie.vy;
+    // zombie.vy = zombie.vy + 1;
+    // zombie.x += zombie.vx;
+    // zombie.y += zombie.vy;
 
-    if (zombie.vy > 0 && zombie.y > 80) {
-        for(let i = 0; i < zombie.vy; i++) {
-            zombie.vy = 0;
-            break;
-        }
-        zombie.y = 80;
-    }
+    // if (zombie.vy > 0 && zombie.y > 80) {
+    //     for(let i = 0; i < zombie.vy; i++) {
+    //         zombie.vy = 0;
+    //         break;
+    //     }
+    //     zombie.y = 80;
+    // }
 
-    if(zombie.y < 0) {
-        zombie.y -= zombie.vy;
-    }
+    // if(zombie.y < 0) {
+    //     zombie.y -= zombie.vy;
+    // }
 
-    if(kb.pressed.ArrowUp) {
-        zombie.vy = -10;
-    }
+    // if(kb.pressed.ArrowUp) {
+    //     zombie.vy = -10;
+    // }
 }
 
 Loader.onError.add((error) => console.error(error));
