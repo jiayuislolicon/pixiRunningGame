@@ -18,9 +18,17 @@ Loader
     .add('jump', '/assets/images/jump.json')
     .add('run', '/assets/images/run.json')
     .add('walk', '/assets/images/walk.json')
+    .add('zombie', '/assets/images/zombieWalk.json')
+    .add('deadFire', '/assets/images/dead_fire.png')
+    .add('fire', '/assets/images/fire.png')
     .load(setup);
 
-let state, landscape, farBuild, midBuild, front, kb, girl;
+let state, landscape, farBuild, midBuild, front, kb, girl, deadSheet, runSheet, walkSheet, jumpSheet, zombieSheet, healthBar;
+let topZombies = [];
+let bottomZombies = [];
+let girlHit = false;
+let gameOver = false;
+let numberofHp = 3;
 
 class wallSpritesPool {
     constructor() {
@@ -201,6 +209,19 @@ class main {
 //     }
 // }
 
+function contain(sprite, container) {
+
+    let collision = undefined;
+  
+    //Left
+    if (sprite.x + sprite.width < container.x) {
+      sprite.x = sprite.width + container.x;
+      collision = "left";
+    }
+    //Return the `collision` value
+    return collision;
+  }
+
 function hitTestRectangle(r1, r2) {
 
     //Define the variables we'll need to calculate
@@ -228,12 +249,13 @@ function hitTestRectangle(r1, r2) {
     //Figure out the combined half-widths and half-heights
     combinedHalfWidths = r1.halfWidth + r2.halfWidth;
     combinedHalfHeights = r1.halfHeight + r2.halfHeight;
-  
+
+
     //Check for a collision on the x axis
     if (Math.abs(vx) < combinedHalfWidths) {
   
       //A collision might be occurring. Check for a collision on the y axis
-      if (Math.abs(vy) < combinedHalfHeights) {
+      if (Math.abs(vy) < combinedHalfWidths) {
   
         //There's definitely a collision happening
         hit = true;
@@ -254,18 +276,37 @@ function hitTestRectangle(r1, r2) {
 
 class keyboroad {
     constructor() {
-        this.pressed = {};
+        this.pressed = false;
+        this.keyCode = null;
     }
     watch () {
         window.addEventListener('keydown', (e) => {
-            this.pressed[e.key] = true;
+            this.pressed = !e.repeat;
+            this.keyCode = e.code;
         }, false);
         window.addEventListener('keyup', (e) => {
-            this.pressed[e.key] = false;
+            this.pressed = false;
+            this.keyCode = null;
         }, false);
     }
 }
 
+let touchStartTimeStamp = 0;
+let touchEndTimeStamp   = 0;
+
+window.addEventListener('touchstart', onTouchStart,false);
+window.addEventListener('touchend', onTouchEnd,false);
+
+let timer;
+function onTouchStart(e) {
+    touchStartTimeStamp = e.timeStamp;
+}
+
+function onTouchEnd(e) {
+    touchEndTimeStamp = e.timeStamp;
+
+    document.querySelector("#app").innerHTML(touchEndTimeStamp - touchStartTimeStamp);// in miliseconds
+}
 
 
 function setup() {
@@ -293,25 +334,82 @@ function setup() {
         .addChild(farBuild)
         .addChild(midBuild)
 
-    front = new main();
-    front.generateTestWallSpan();
 
-    let deadSheet = Loader.resources.dead.spritesheet;
-    let runSheet = Loader.resources.run.spritesheet;
-    let walkSheet = Loader.resources.walk.spritesheet;
-    let jumpSheet = Loader.resources.jump.spritesheet;
+    deadSheet = Loader.resources.dead.spritesheet;
+    runSheet = Loader.resources.run.spritesheet;
+    walkSheet = Loader.resources.walk.spritesheet;
+    jumpSheet = Loader.resources.jump.spritesheet;
+    zombieSheet = Loader.resources.zombie.spritesheet;
 
-    console.log(walkSheet)
-    // girl = new PIXI.AnimatedSprite(walkSheet.animations["zombie"]);
-    // zombie.animationSpeed = -0.167;
-    // zombie.x = 96;
-    // zombie.y = 0;
-    // zombie.vy = 0;
-    // zombie.vx = 0;
-    // zombie.scale.x = 0.3;
-    // zombie.scale.y = 0.3;
-    // zombie.play();
-    // landscape.addChild(zombie);
+
+    girl = new PIXI.AnimatedSprite(runSheet.animations["Run"]);
+    girl.animationSpeed = -0.167;
+    girl.x = 96;
+    girl.y = 0;
+    girl.vy = 0;
+    girl.vx = 0;
+    girl.scale.x = 0.2;
+    girl.scale.y = 0.2;
+    girl.animationSpeed = 1;
+    girl.play();
+    landscape.addChild(girl);
+
+    healthBar = new Container();
+    healthBar.position.set(landscape.width - 220, 4);
+    landscape.addChild(healthBar);
+
+    //Create the black background rectangle
+    let innerBar = new PIXI.Graphics();
+    innerBar.beginFill(0x000000);
+    innerBar.drawRect(0, 0, 200, 8);
+    innerBar.endFill();
+    healthBar.addChild(innerBar);
+
+    //Create the front red rectangle
+    let outerBar = new PIXI.Graphics();
+    outerBar.beginFill(0xFF3300);
+    outerBar.drawRect(0, 0, 200, 8);
+    outerBar.endFill();
+    healthBar.addChild(outerBar);
+
+    healthBar.outer = outerBar;
+
+    let numberOfZomble = 1,
+    spacing = 48,
+    xOffset = 512,
+    speed = 2;
+
+    for(let i = 0; i < numberOfZomble; i++) {
+        let zombie = new PIXI.AnimatedSprite(zombieSheet.animations["zombie"]);
+        // let zombieHeight = zombie.height * 0.3;
+        zombie.animationSpeed = 0.5;
+        zombie.x = xOffset + spacing * i;
+        zombie.y = 180;
+        zombie.vy = 0;
+        zombie.vx = speed;
+        zombie.scale.x = 0.3;
+        zombie.scale.y = 0.3;
+        zombie.touch = false;
+        bottomZombies.push(zombie);
+        zombie.play();
+        landscape.addChild(zombie);
+    }
+
+    // for(let i = 0; i < numberOfZomble; i++) {
+    //     let zombie = new PIXI.AnimatedSprite(zombieSheet.animations["zombie"]);
+    //     // let zombieHeight = zombie.height * 0.3;
+    //     zombie.x = xOffset + 500 + spacing * i;
+    //     zombie.animationSpeed = 0.5;
+    //     zombie.y = 80;
+    //     zombie.vy = 0;
+    //     zombie.vx = speed;
+    //     zombie.scale.x = 0.3;
+    //     zombie.scale.y = 0.3;
+    //     zombie.touch = false;
+    //     topZombies.push(zombie);
+    //     zombie.play();
+    //     landscape.addChild(zombie);
+    // }
 
     kb = new keyboroad();
     kb.watch();
@@ -335,30 +433,79 @@ function gameLoop(delta) {
     state(delta);
 }
 
+function monsterAction(array) {
+    array.forEach((zombie) => {
+        let leave = contain(zombie, landscape);
+        if(leave == 'left') {
+            zombie.x = -zombie.width;
+            zombie.vx = 0;
+            landscape.removeChild(zombie);
+        } else {
+            zombie.x -= zombie.vx;
+        }
+        if(hitTestRectangle(girl, zombie)) {
+            // girlHit = true;
+            console.log("trigger")
+        }
+        if(girlHit) {
+            if(Math.floor(healthBar.outer.width) == 0) {
+                healthBar.outer.width = 0;
+                girl.textures = deadSheet.animations["Dead"];
+                girl.play();
+            } else {
+                healthBar.outer.width -= 10;
+                girl.alpha = 0.5;
+                girlHit = false;
+            }
+        } else {
+            girl.alpha = 1;
+        }
+    })
+}
+
 function play(delta) {
     farBuild.tilePosition.x -= 0.128;
     midBuild.tilePosition.x -= 0.64;
+    // zombie.x -= 1
 
-    // 給殭屍一個重力
-    // zombie.vy = zombie.vy + 1;
-    // zombie.x += zombie.vx;
-    // zombie.y += zombie.vy;
+    monsterAction(bottomZombies);
+    monsterAction(topZombies);
 
-    // if (zombie.vy > 0 && zombie.y > 80) {
-    //     for(let i = 0; i < zombie.vy; i++) {
-    //         zombie.vy = 0;
-    //         break;
-    //     }
-    //     zombie.y = 80;
-    // }
+    if (girl.vy > 0 && girl.y > 180) {
+        for(let i = 0; i < girl.vy; i++) {
+            girl.vy = 0;
+            break;
+        }
+        girl.y = 180;
+    }
 
-    // if(zombie.y < 0) {
-    //     zombie.y -= zombie.vy;
-    // }
 
-    // if(kb.pressed.ArrowUp) {
-    //     zombie.vy = -10;
-    // }
+    if(kb.pressed && !gameOver) {
+        girl.y += girl.vy;
+        if(kb.keyCode == 'ArrowUp') {
+            girl.textures = jumpSheet.animations["Jump"];
+            girl.play();
+            if(girl.y <= 80) {
+                girl.vy = 0;
+            } else {
+                girl.vy = -20;
+            }
+        } else if(kb.keyCode == 'ArrowDown') {
+            girl.textures = runSheet.animations["Run"];
+            if(girl.y >= 180) {
+                girl.vy = 0;
+            } else {
+                girl.vy = 20;
+            }
+        }
+    } else {
+        girl.textures = runSheet.animations["Run"];
+        // girl.gotoAndPlay(1);
+        // 給個重力
+        girl.vy = girl.vy + 1;
+        girl.x += girl.vx;
+        girl.y += girl.vy;
+    }
 }
 
 Loader.onError.add((error) => console.error(error));
