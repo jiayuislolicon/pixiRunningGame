@@ -23,124 +23,12 @@ Loader
     .add('fire', '/assets/images/fire.png')
     .load(setup);
 
-let state, landscape, farBuild, midBuild, front, kb, girl, deadSheet, runSheet, walkSheet, jumpSheet, zombieSheet, healthBar;
+let state, landscape, farBuild, midBuild, front, kb, girl, deadSheet, runSheet, walkSheet, jumpSheet, zombieSheet, healthBar, catchPoints;
 let topZombies = [];
 let bottomZombies = [];
 let girlHit = false;
 let gameOver = false;
 let numberofHp = 3;
-
-class wallSpritesPool {
-    constructor() {
-        this.createWindows();
-        this.createDecorations();
-        this.createFrontEdges();
-        this.createBackEdges();
-        this.createSteps();
-    }
-    shuffle = (arr) => {
-        let len = arr.length;
-        let shuffles = len * 3;
-        for (let i = 0; i < shuffles; i++) {
-            let wallSlice = arr.pop();
-            let pos = Math.floor(Math.random() * (len - 1));
-            arr.splice(pos, 0, wallSlice);
-        }
-    }
-    addWindowSprites = (amount, frameId) => {
-        for(let i = 0; i < amount; i++) {
-            let sprite = new Sprite.from(resources.builds.textures[frameId]);
-            this.window.push(sprite);
-        }
-    }
-    createWindows = () => {
-        this.window = [];
-        this.addWindowSprites(6, "wall_2.png");
-        this.addWindowSprites(6, "wall_6.png");
-        this.shuffle(this.window);
-    }
-    borrowWindow = () => {
-        //移除並回傳陣列的第一個元素
-        return this.window.shift();
-    }
-    returnWindow = (sprite) => {
-        this.window.push(sprite);
-    }
-    addDecorationsSprites = (amount, frameId) => {
-        for(let i = 0; i < amount; i++) {
-            let sprite = new Sprite.from(resources.builds.textures[frameId]);
-            this.decorations.push(sprite);
-        }
-    }
-    createDecorations = () => {
-        this.decorations = [];
-        this.addDecorationsSprites(6, "wall_3.png");
-        this.addDecorationsSprites(6, "wall_7.png");
-        this.addDecorationsSprites(6, "wall_8.png");
-        this.shuffle(this.decorations);
-    }
-    borrowDecorations = () => {
-        return this.decorations.shift();
-    }
-    returnDecorations = (sprite) => {
-        this.decorations.push(sprite);
-    }
-    addFrontEdgeSprites = (amount, frameId) => {
-        for(let i = 0; i < amount; i++) {
-            let sprite = new Sprite.from(resources.builds.textures[frameId]);
-            this.frontEdges.push(sprite);
-        }
-    }
-    createFrontEdges = () => {
-        this.frontEdges = [];
-        this.addFrontEdgeSprites(2, 'wall_1.png');
-        this.addFrontEdgeSprites(2, 'wall_5.png');
-        this.shuffle(this.frontEdges);
-    }
-    borrowFrontEdge = () => {
-        return this.frontEdges.shift();
-    }
-    returnFrontEdge = (sprite) => {
-        this.frontEdges.push(sprite);
-    }
-    addBackEdgeSprites = (amount, frameId) => {
-        for(let i = 0; i < amount; i++) {
-            let sprite = new Sprite.from(resources.builds.textures[frameId]);
-            sprite.anchor.x = 1;
-            sprite.scale.x = -1;
-            this.backEdges.push(sprite);
-        }
-    }
-    createBackEdges = () => {
-        this.backEdges = [];
-        this.addBackEdgeSprites(2, 'wall_1.png');
-        this.addBackEdgeSprites(2, 'wall_5.png');
-        this.shuffle(this.backEdges);
-    }
-    borrowBackEdge = () => {
-        return this.backEdges.shift();
-    }
-    returnBackEdge = (sprite) => {
-        this.backEdges.push(sprite);
-    }
-    addStepSprites = (amount, frameId) => {
-        for(let i = 0; i < amount; i++) {
-            let sprite = new Sprite.from(resources.builds.textures[frameId]);
-            sprite.anchor.y = 0.25;
-            this.steps.push(sprite);
-        }
-    }
-    createSteps = () => {
-        this.steps = [];
-        this.addStepSprites(2, "wall_4.png");
-    }
-    borrowStep = () => {
-        return this.steps.shift();
-    }
-    returnStep = (sprite) => {
-        this.steps.push(sprite);
-    }
-}
 
 class main {
     constructor() {
@@ -199,16 +87,6 @@ class main {
 
 }
 
-// class Far {
-//     constructor() {
-//         TilingSprite.call(this, texture, width, height);
-//         this.position.x = 0;
-//         this.position.y = 0;
-//         this.tilePosition.x = 0;
-//         this.tilePosition.y = 0;
-//     }
-// }
-
 function contain(sprite, container) {
 
     let collision = undefined;
@@ -222,17 +100,16 @@ function contain(sprite, container) {
     return collision;
   }
 
-function hitTestRectangle(r1, r2) {
+function detectAccuracy(r1, r2) {
 
     //Define the variables we'll need to calculate
     let hit, combinedHalfWidths, combinedHalfHeights, vx, vy;
   
     //hit will determine whether there's a collision
-    hit = false;
   
     //Find the center points of each sprite
-    r1.centerX = r1.x + r1.width / 2;
-    r1.centerY = r1.y + r1.height / 2;
+    r1.centerX = r1.x + r1.width / 2 + 160;
+    r1.centerY = r1.y + r1.height / 2 + 80;
     r2.centerX = r2.x + r2.width / 2;
     r2.centerY = r2.y + r2.height / 2;
   
@@ -241,7 +118,7 @@ function hitTestRectangle(r1, r2) {
     r1.halfHeight = r1.height / 2;
     r2.halfWidth = r2.width / 2;
     r2.halfHeight = r2.height / 2;
-  
+
     //Calculate the distance vector between the sprites
     vx = r1.centerX - r2.centerX;
     vy = r1.centerY - r2.centerY;
@@ -250,20 +127,17 @@ function hitTestRectangle(r1, r2) {
     combinedHalfWidths = r1.halfWidth + r2.halfWidth;
     combinedHalfHeights = r1.halfHeight + r2.halfHeight;
 
-
     //Check for a collision on the x axis
-    if (Math.abs(vx) < combinedHalfWidths) {
-  
-      //A collision might be occurring. Check for a collision on the y axis
-      if (Math.abs(vy) < combinedHalfWidths) {
-  
-        //There's definitely a collision happening
-        hit = true;
-      } else {
-  
-        //There's no collision on the y axis
-        hit = false;
-      }
+    if (Math.abs(vx) < combinedHalfWidths / 2 && kb.pressed) {
+        hit = 'prefect';
+    } else if (Math.abs(vx) < combinedHalfWidths && kb.pressed) {
+        hit = 'great';
+    } else if (Math.abs(vx) < combinedHalfWidths * 1.5 && kb.pressed) {
+        hit = 'good';
+    } else if (Math.abs(vx) < combinedHalfWidths * 2 && kb.pressed) {
+        hit = 'bad';
+    } else if (Math.abs(vx) < combinedHalfWidths / 4 && !kb.pressed) {
+        hit = 'miss';
     } else {
   
       //There's no collision on the x axis
@@ -374,7 +248,31 @@ function setup() {
 
     healthBar.outer = outerBar;
 
-    let numberOfZomble = 1,
+    //catch points
+    catchPoints = new Container();
+    catchPoints.position.set(160, 80);
+    landscape.addChild(catchPoints);
+
+    let topPoint = new PIXI.Graphics();
+    topPoint.beginFill(0x32ffed);
+    topPoint.lineStyle(0);
+    topPoint.drawCircle(50, 50, 25);
+    topPoint.endFill();
+    catchPoints.addChild(topPoint);
+
+    catchPoints.top = topPoint;
+
+    let bottomPoint = new PIXI.Graphics();
+    bottomPoint.beginFill(0x32ffed);
+    bottomPoint.lineStyle(0);
+    bottomPoint.drawCircle(50, 50, 25);
+    bottomPoint.endFill();
+    bottomPoint.position.set(0, 100);
+    catchPoints.addChild(bottomPoint);
+
+    catchPoints.bottom = bottomPoint;
+
+    let numberOfZomble = 5,
     spacing = 48,
     xOffset = 512,
     speed = 2;
@@ -383,7 +281,7 @@ function setup() {
         let zombie = new PIXI.AnimatedSprite(zombieSheet.animations["zombie"]);
         // let zombieHeight = zombie.height * 0.3;
         zombie.animationSpeed = 0.5;
-        zombie.x = xOffset + spacing * i;
+        zombie.x = xOffset + spacing * i / 2;
         zombie.y = 180;
         zombie.vy = 0;
         zombie.vx = speed;
@@ -434,31 +332,38 @@ function gameLoop(delta) {
 }
 
 function monsterAction(array) {
-    array.forEach((zombie) => {
-        let leave = contain(zombie, landscape);
-        if(leave == 'left') {
-            zombie.x = -zombie.width;
-            zombie.vx = 0;
-            landscape.removeChild(zombie);
-        } else {
-            zombie.x -= zombie.vx;
-        }
-        if(hitTestRectangle(girl, zombie)) {
-            // girlHit = true;
-            console.log("trigger")
-        }
-        if(girlHit) {
-            if(Math.floor(healthBar.outer.width) == 0) {
-                healthBar.outer.width = 0;
-                girl.textures = deadSheet.animations["Dead"];
-                girl.play();
+    array.forEach((zombie, index) => {
+        if(array[index] !== null) {
+            let leave = contain(zombie, landscape);
+            if(leave == 'left') {
+                zombie.x = -zombie.width;
+                zombie.vx = 0;
+                landscape.removeChild(zombie);
             } else {
-                healthBar.outer.width -= 10;
-                girl.alpha = 0.5;
-                girlHit = false;
+                zombie.x -= zombie.vx;
             }
-        } else {
-            girl.alpha = 1;
+            console.log(detectAccuracy(catchPoints.bottom, zombie))
+            if(detectAccuracy(catchPoints.bottom, zombie) !== 'miss') {
+                if(detectAccuracy(catchPoints.bottom, zombie) !== false) {
+                    landscape.removeChild(zombie)
+                    array[index].destroy();
+                    array[index] = null;
+                }
+            } else if (detectAccuracy(catchPoints.bottom, zombie) == 'miss') {
+                girlHit = true;
+            }
+            if(girlHit) {
+                if(Math.floor(healthBar.outer.width) == 0) {
+                    healthBar.outer.width = 0;
+                    girl.textures = deadSheet.animations["Dead"];
+                } else {
+                    healthBar.outer.width -= 10;
+                    girl.alpha = 0.5;
+                    girlHit = false;
+                }
+            } else {
+                girl.alpha = 1;
+            }
         }
     })
 }
@@ -492,6 +397,7 @@ function play(delta) {
             }
         } else if(kb.keyCode == 'ArrowDown') {
             girl.textures = runSheet.animations["Run"];
+            girl.play();
             if(girl.y >= 180) {
                 girl.vy = 0;
             } else {
@@ -499,7 +405,7 @@ function play(delta) {
             }
         }
     } else {
-        girl.textures = runSheet.animations["Run"];
+        // girl.textures = runSheet.animations["Run"];
         // girl.gotoAndPlay(1);
         // 給個重力
         girl.vy = girl.vy + 1;
