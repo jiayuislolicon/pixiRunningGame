@@ -41,6 +41,7 @@
   },
   "dependencies": {
     "axios": "^0.19.2",
+    "pixi-sound": "^3.0.5",
     "pixi.js": "^5.3.3"
   }
 }

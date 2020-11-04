@@ -104,15 +104,16 @@ function detectAccuracy(r1, r2) {
 
     //Define the variables we'll need to calculate
     let hit, combinedHalfWidths, combinedHalfHeights, vx, vy;
-  
+
     //hit will determine whether there's a collision
-  
+
     //Find the center points of each sprite
-    r1.centerX = r1.x + r1.width / 2 + 160;
+
+    r1.centerX = r1.x + r1.width / 2;
     r1.centerY = r1.y + r1.height / 2 + 80;
     r2.centerX = r2.x + r2.width / 2;
     r2.centerY = r2.y + r2.height / 2;
-  
+
     //Find the half-widths and half-heights of each sprite
     r1.halfWidth = r1.width / 2;
     r1.halfHeight = r1.height / 2;
@@ -122,42 +123,47 @@ function detectAccuracy(r1, r2) {
     //Calculate the distance vector between the sprites
     vx = r1.centerX - r2.centerX;
     vy = r1.centerY - r2.centerY;
-  
+
     //Figure out the combined half-widths and half-heights
     combinedHalfWidths = r1.halfWidth + r2.halfWidth;
     combinedHalfHeights = r1.halfHeight + r2.halfHeight;
 
-    //Check for a collision on the x axis
-    if (Math.abs(vx) < combinedHalfWidths / 2 && kb.pressed) {
-        hit = 'prefect';
-    } else if (Math.abs(vx) < combinedHalfWidths && kb.pressed) {
+    if (Math.abs(vx) < combinedHalfWidths && kb.pressed) {
+        hit = 'perfect';
+    } else if (Math.abs(vx) < combinedHalfWidths * 1.2 && kb.pressed) {
         hit = 'great';
     } else if (Math.abs(vx) < combinedHalfWidths * 1.5 && kb.pressed) {
         hit = 'good';
     } else if (Math.abs(vx) < combinedHalfWidths * 2 && kb.pressed) {
         hit = 'bad';
-    } else if (Math.abs(vx) < combinedHalfWidths / 4 && !kb.pressed) {
+    } else if (Math.abs(vx) < combinedHalfWidths * 0.02 && !kb.pressed) {
         hit = 'miss';
     } else {
-  
       //There's no collision on the x axis
       hit = false;
     }
-  
+
     //`hit` will be either `true` or `false`
-    return hit;
+    return {hit, vx, combinedHalfWidths};
 };
+
 
 class keyboroad {
     constructor() {
         this.pressed = false;
         this.keyCode = null;
     }
-    watch () {
+    watch = () => {
         window.addEventListener('keydown', (e) => {
-            this.pressed = !e.repeat;
-            this.keyCode = e.code;
-        }, false);
+            if(e.code !== this.keyCode && !this.pressed && !e.repeat ) {
+                this.pressed = true;
+                this.keyCode = e.code;
+                setTimeout(() => {
+                    this.pressed = false;
+                    this.keyCode = null;
+                }, 15);
+            }
+        }, true);
         window.addEventListener('keyup', (e) => {
             this.pressed = false;
             this.keyCode = null;
@@ -272,16 +278,16 @@ function setup() {
 
     catchPoints.bottom = bottomPoint;
 
-    let numberOfZomble = 5,
-    spacing = 48,
+    let numberOfZomble = 100,
+    spacing = 200,
     xOffset = 512,
-    speed = 2;
+    speed = 3;
 
     for(let i = 0; i < numberOfZomble; i++) {
         let zombie = new PIXI.AnimatedSprite(zombieSheet.animations["zombie"]);
         // let zombieHeight = zombie.height * 0.3;
         zombie.animationSpeed = 0.5;
-        zombie.x = xOffset + spacing * i / 2;
+        zombie.x = xOffset + spacing * i;
         zombie.y = 180;
         zombie.vy = 0;
         zombie.vx = speed;
@@ -331,6 +337,12 @@ function gameLoop(delta) {
     state(delta);
 }
 
+Array.prototype.insert = function ( index, item ) {
+    this.splice( index, 0, item );
+};
+
+let zombieDistance = [];
+
 function monsterAction(array) {
     array.forEach((zombie, index) => {
         if(array[index] !== null) {
@@ -342,15 +354,21 @@ function monsterAction(array) {
             } else {
                 zombie.x -= zombie.vx;
             }
-            console.log(detectAccuracy(catchPoints.bottom, zombie))
-            if(detectAccuracy(catchPoints.bottom, zombie) !== 'miss') {
-                if(detectAccuracy(catchPoints.bottom, zombie) !== false) {
-                    landscape.removeChild(zombie)
-                    array[index].destroy();
-                    array[index] = null;
-                }
-            } else if (detectAccuracy(catchPoints.bottom, zombie) == 'miss') {
-                girlHit = true;
+
+            // if(detectAccuracy(catchPoints.bottom, array[0]).hit !== 'miss') {
+            //     if(detectAccuracy(catchPoints.bottom, array[0]).hit !== false) {
+            //         landscape.removeChild(array[0])
+            //         array[0].destroy();
+            //         array.splice(0, 1);
+            //         console.log(detectAccuracy(catchPoints.bottom, array[0]).combinedHalfWidths)
+            //         array[index] = null;
+            //     }
+            // } else if (detectAccuracy(catchPoints.bottom, array[0]).hit == 'miss') {
+            //     girlHit = true;
+            // }
+            if(detectAccuracy(girl, array[0]).hit == 'miss') {
+                array.splice(0, 1);
+                console.log('miss')
             }
             if(girlHit) {
                 if(Math.floor(healthBar.outer.width) == 0) {
@@ -366,6 +384,18 @@ function monsterAction(array) {
             }
         }
     })
+}
+
+function deleteZombie(array) {
+
+    console.log(detectAccuracy(girl, array[0]).hit)
+    if(array.length !== 0) {
+        if (detectAccuracy(girl, array[0]).hit !== 'miss') {
+            if(detectAccuracy(girl, array[0]).hit !== false) {
+                array.splice(0, 1);
+            }
+        }
+    }
 }
 
 function play(delta) {
@@ -384,8 +414,9 @@ function play(delta) {
         girl.y = 180;
     }
 
-
+    
     if(kb.pressed && !gameOver) {
+        deleteZombie(bottomZombies);
         girl.y += girl.vy;
         if(kb.keyCode == 'ArrowUp') {
             girl.textures = jumpSheet.animations["Jump"];
@@ -404,6 +435,7 @@ function play(delta) {
                 girl.vy = 20;
             }
         }
+        
     } else {
         // girl.textures = runSheet.animations["Run"];
         // girl.gotoAndPlay(1);
