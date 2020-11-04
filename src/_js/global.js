@@ -39,6 +39,7 @@ let hitNumber = {
     "combo": 0,
     "recordofCombo": [],
 }
+let missTrigger = true;
 
 class main {
     constructor() {
@@ -288,7 +289,7 @@ function setup() {
 
     catchPoints.bottom = bottomPoint;
 
-    let numberOfZomble = 100,
+    let numberOfZomble = 10,
     spacing = 200,
     xOffset = 512,
     speed = 6;
@@ -354,15 +355,18 @@ Array.prototype.insert = function ( index, item ) {
 
 
 
-function monsterAction(array) {
+function monsterAction(array, copyofArray) {
     array.forEach((zombie, index) => {
-        if(array[index] !== null) {
+        if(array.length !== 0) {
             let leave = contain(zombie, landscape);
-            // if(leave == 'left') {
-            //     zombie.x = -zombie.width;
-            //     zombie.vx = 0;
-            //     landscape.removeChild(zombie);
-            // } 
+            if(leave == 'left') {
+                array.splice(0, 1);
+                zombie.x = -zombie.width;
+                zombie.vx = 0;
+                landscape.removeChild(zombie);
+            } else {
+                zombie.x -= zombie.vx;
+            }
 
             // if(detectAccuracy(catchPoints.bottom, array[0]).hit !== 'miss') {
             //     if(detectAccuracy(catchPoints.bottom, array[0]).hit !== false) {
@@ -375,16 +379,22 @@ function monsterAction(array) {
             // } else if (detectAccuracy(catchPoints.bottom, array[0]).hit == 'miss') {
             //     girlHit = true;
             // }
-            if(detectAccuracy(girl, array[0]).hit == 'miss') {
-                array.splice(0, 1);
+
+            if(detectAccuracy(girl, array[0]).hit == 'miss' && missTrigger) {
+                missTrigger = false;
+                copyofArray.splice(0, 1);
+                hitNumber.miss += 1;
+                failCombo();
+                // console.log(hitNumber.miss)
+                setTimeout(() => {
+                    missTrigger = true;
+                }, 50);
                 // zombie.x = -zombie.width;
                 // zombie.vx = 0;
                 // landscape.removeChild(zombie);
                 // landscape.removeChild(array[0]);
-                hitNumber.miss += 1;
-                failCombo();
-            } else {
-                zombie.x -= zombie.vx;
+
+                // console.log("miss")
             }
 
             if(girlHit) {
@@ -408,30 +418,36 @@ function failCombo() {
     hitNumber.combo = 0;
 }
 
-function deleteZombie(array) {
+function deleteZombie(array, copyofArray) {
 
     if(array.length !== 0) {
-        let status = detectAccuracy(girl, array[0]).hit;
+        console.log(array.indexOf(copyofArray[0]), 'clean')
+        let status = detectAccuracy(girl, array[array.indexOf(copyofArray[0])]).hit;
         if (status !== 'miss') {
             if(status !== false) {
                 landscape.removeChild(array[0]);
                 array[0].destroy();
+                copyofArray.splice(0, 1);
                 array.splice(0, 1);
-                if(status == 'perfect') {
-                    hitNumber.perfect += 1;
-                    hitNumber.combo += 1;
-                } else if(status == 'great') {
-                    hitNumber.great += 1;
-                    hitNumber.combo += 1;
-                } else if(status == 'good') {
-                    hitNumber.good += 1;
-                    failCombo();
-                } else if(status == 'bad') {
-                    hitNumber.bad += 1;
-                    failCombo();
-                }
             }
         }
+
+
+        //         if(status == 'perfect') {
+        //             hitNumber.perfect += 1;
+        //             hitNumber.combo += 1;
+        //         } else if(status == 'great') {
+        //             hitNumber.great += 1;
+        //             hitNumber.combo += 1;
+        //         } else if(status == 'good') {
+        //             hitNumber.good += 1;
+        //             failCombo();
+        //         } else if(status == 'bad') {
+        //             hitNumber.bad += 1;
+        //             failCombo();
+        //         }
+        //     }
+        // }
     }
 }
 
@@ -440,7 +456,7 @@ function play(delta) {
     midBuild.tilePosition.x -= 0.64;
     // zombie.x -= 1
 
-    monsterAction(bottomZombies);
+    monsterAction(bottomZombies, copyofBottomZombies);
     // monsterAction(topZombies);
 
     if (girl.vy > 0 && girl.y > 180) {
