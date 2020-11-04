@@ -26,9 +26,19 @@ Loader
 let state, landscape, farBuild, midBuild, front, kb, girl, deadSheet, runSheet, walkSheet, jumpSheet, zombieSheet, healthBar, catchPoints;
 let topZombies = [];
 let bottomZombies = [];
+let copyofBottomZombies = [];
 let girlHit = false;
 let gameOver = false;
 let numberofHp = 3;
+let hitNumber = {
+    "perfect": 0,
+    "great": 0,
+    "good": 0,
+    "bad": 0,
+    "miss": 0,
+    "combo": 0,
+    "recordofCombo": [],
+}
 
 class main {
     constructor() {
@@ -136,7 +146,7 @@ function detectAccuracy(r1, r2) {
         hit = 'good';
     } else if (Math.abs(vx) < combinedHalfWidths * 2 && kb.pressed) {
         hit = 'bad';
-    } else if (Math.abs(vx) < combinedHalfWidths * 0.02 && !kb.pressed) {
+    } else if (Math.abs(vx) < combinedHalfWidths * 0.05 && !kb.pressed) {
         hit = 'miss';
     } else {
       //There's no collision on the x axis
@@ -281,7 +291,7 @@ function setup() {
     let numberOfZomble = 100,
     spacing = 200,
     xOffset = 512,
-    speed = 3;
+    speed = 6;
 
     for(let i = 0; i < numberOfZomble; i++) {
         let zombie = new PIXI.AnimatedSprite(zombieSheet.animations["zombie"]);
@@ -295,6 +305,7 @@ function setup() {
         zombie.scale.y = 0.3;
         zombie.touch = false;
         bottomZombies.push(zombie);
+        copyofBottomZombies.push(zombie);
         zombie.play();
         landscape.addChild(zombie);
     }
@@ -341,19 +352,17 @@ Array.prototype.insert = function ( index, item ) {
     this.splice( index, 0, item );
 };
 
-let zombieDistance = [];
+
 
 function monsterAction(array) {
     array.forEach((zombie, index) => {
         if(array[index] !== null) {
             let leave = contain(zombie, landscape);
-            if(leave == 'left') {
-                zombie.x = -zombie.width;
-                zombie.vx = 0;
-                landscape.removeChild(zombie);
-            } else {
-                zombie.x -= zombie.vx;
-            }
+            // if(leave == 'left') {
+            //     zombie.x = -zombie.width;
+            //     zombie.vx = 0;
+            //     landscape.removeChild(zombie);
+            // } 
 
             // if(detectAccuracy(catchPoints.bottom, array[0]).hit !== 'miss') {
             //     if(detectAccuracy(catchPoints.bottom, array[0]).hit !== false) {
@@ -368,8 +377,16 @@ function monsterAction(array) {
             // }
             if(detectAccuracy(girl, array[0]).hit == 'miss') {
                 array.splice(0, 1);
-                console.log('miss')
+                // zombie.x = -zombie.width;
+                // zombie.vx = 0;
+                // landscape.removeChild(zombie);
+                // landscape.removeChild(array[0]);
+                hitNumber.miss += 1;
+                failCombo();
+            } else {
+                zombie.x -= zombie.vx;
             }
+
             if(girlHit) {
                 if(Math.floor(healthBar.outer.width) == 0) {
                     healthBar.outer.width = 0;
@@ -386,13 +403,33 @@ function monsterAction(array) {
     })
 }
 
+function failCombo() {
+    hitNumber.recordofCombo.push(hitNumber.combo);
+    hitNumber.combo = 0;
+}
+
 function deleteZombie(array) {
 
-    console.log(detectAccuracy(girl, array[0]).hit)
     if(array.length !== 0) {
-        if (detectAccuracy(girl, array[0]).hit !== 'miss') {
-            if(detectAccuracy(girl, array[0]).hit !== false) {
+        let status = detectAccuracy(girl, array[0]).hit;
+        if (status !== 'miss') {
+            if(status !== false) {
+                landscape.removeChild(array[0]);
+                array[0].destroy();
                 array.splice(0, 1);
+                if(status == 'perfect') {
+                    hitNumber.perfect += 1;
+                    hitNumber.combo += 1;
+                } else if(status == 'great') {
+                    hitNumber.great += 1;
+                    hitNumber.combo += 1;
+                } else if(status == 'good') {
+                    hitNumber.good += 1;
+                    failCombo();
+                } else if(status == 'bad') {
+                    hitNumber.bad += 1;
+                    failCombo();
+                }
             }
         }
     }
@@ -404,7 +441,7 @@ function play(delta) {
     // zombie.x -= 1
 
     monsterAction(bottomZombies);
-    monsterAction(topZombies);
+    // monsterAction(topZombies);
 
     if (girl.vy > 0 && girl.y > 180) {
         for(let i = 0; i < girl.vy; i++) {
@@ -414,9 +451,8 @@ function play(delta) {
         girl.y = 180;
     }
 
-    
     if(kb.pressed && !gameOver) {
-        deleteZombie(bottomZombies);
+        deleteZombie(bottomZombies, copyofBottomZombies);
         girl.y += girl.vy;
         if(kb.keyCode == 'ArrowUp') {
             girl.textures = jumpSheet.animations["Jump"];
@@ -435,7 +471,7 @@ function play(delta) {
                 girl.vy = 20;
             }
         }
-        
+
     } else {
         // girl.textures = runSheet.animations["Run"];
         // girl.gotoAndPlay(1);
