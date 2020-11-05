@@ -9,6 +9,7 @@ const Loader = new PIXI.Loader(),
       resources = Loader.resources;
 
 document.body.appendChild(app.view);
+app.view.setAttribute('tabindex', 0);
 
 Loader
     .add('far', '/assets/images/bg-far.png')
@@ -26,7 +27,6 @@ Loader
 let state, landscape, farBuild, midBuild, front, kb, girl, deadSheet, runSheet, walkSheet, jumpSheet, zombieSheet, healthBar, catchPoints;
 let topZombies = [];
 let bottomZombies = [];
-let copyofBottomZombies = [];
 let girlHit = false;
 let gameOver = false;
 let numberofHp = 3;
@@ -40,6 +40,8 @@ let hitNumber = {
     "recordofCombo": [],
 }
 let missTrigger = true;
+
+let jumped = false;
 
 class main {
     constructor() {
@@ -111,17 +113,17 @@ function contain(sprite, container) {
     return collision;
   }
 
-function detectAccuracy(r1, r2) {
+function detectAccuracy(r1, r2, keyboardEvent) {
 
     //Define the variables we'll need to calculate
-    let hit, combinedHalfWidths, combinedHalfHeights, vx, vy;
+    let hit, combinedHalfWidths, combinedHalfHeights, vx, vy, testYaxis;
 
     //hit will determine whether there's a collision
 
     //Find the center points of each sprite
 
     r1.centerX = r1.x + r1.width / 2;
-    r1.centerY = r1.y + r1.height / 2 + 80;
+    r1.centerY = r1.y + r1.height / 2;
     r2.centerX = r2.x + r2.width / 2;
     r2.centerY = r2.y + r2.height / 2;
 
@@ -139,45 +141,69 @@ function detectAccuracy(r1, r2) {
     combinedHalfWidths = r1.halfWidth + r2.halfWidth;
     combinedHalfHeights = r1.halfHeight + r2.halfHeight;
 
-    if (Math.abs(vx) < combinedHalfWidths && kb.pressed) {
-        hit = 'perfect';
-    } else if (Math.abs(vx) < combinedHalfWidths * 1.2 && kb.pressed) {
-        hit = 'great';
-    } else if (Math.abs(vx) < combinedHalfWidths * 1.5 && kb.pressed) {
-        hit = 'good';
-    } else if (Math.abs(vx) < combinedHalfWidths * 2 && kb.pressed) {
-        hit = 'bad';
-    } else if (Math.abs(vx) < combinedHalfWidths * 0.05 && !kb.pressed) {
-        hit = 'miss';
-    } else {
-      //There's no collision on the x axis
-      hit = false;
+    // if (Math.abs(vx) < combinedHalfWidths) {
+    //     hit = 'perfect';
+    // } else if (Math.floor(vx) < combinedHalfWidths * 1.2) {
+    //     hit = 'great';
+    // } else if (Math.floor(vx) < combinedHalfWidths * 1.5) {
+    //     hit = 'good';
+    // } else if (Math.floor(vx) < combinedHalfWidths * 2) {
+    //     hit = 'bad';
+    // } else if (Math.floor(vx) < combinedHalfWidths * 0.05) {
+    //     hit = 'miss';
+    // }
+
+    if(r1.y == r2.y) {
+        if (Math.abs(vx) < combinedHalfWidths && keyboardEvent) {
+            hit = 'perfect';
+        } else if (Math.abs(vx) < combinedHalfWidths * 1.2 && keyboardEvent) {
+            hit = 'good';
+        } else if (Math.abs(vx) < combinedHalfWidths * 0.05 && !keyboardEvent) {
+            hit = 'miss';
+        } else {
+            hit = false;
+        }
+    }else {
+        if (Math.abs(vx) < combinedHalfWidths * 0.05) {
+            hit = 'miss';
+        } else {
+          //There's no collision on the x axis
+          hit = false;
+        }
     }
 
     //`hit` will be either `true` or `false`
-    return {hit, vx, combinedHalfWidths};
+    return hit;
 };
 
 
 class keyboroad {
     constructor() {
-        this.pressed = false;
-        this.keyCode = null;
+        this.pressed = {};
+        this.repeat = null;
+        // this.keyCode = null;
     }
     watch = () => {
         window.addEventListener('keydown', (e) => {
-            if(e.code !== this.keyCode && !this.pressed && !e.repeat ) {
-                this.pressed = true;
-                this.keyCode = e.code;
-                setTimeout(() => {
-                    this.pressed = false;
-                    this.keyCode = null;
-                }, 15);
-            }
-        }, true);
+            // if(e.code !== this.keyCode && !this.pressed && !e.repeat ) {
+            //     this.pressed = true;
+            //     this.keyCode = e.key;
+                // setTimeout(() => {
+                //     this.pressed = false;
+                //     this.keyCode = null;
+                // }, 15);
+            // }
+            this.repeat = e.repeat;
+            this.pressed[e.key] = true;
+            setTimeout(() => {
+                this.pressed[e.key] = false;
+            }, 100);
+        }, false);
         window.addEventListener('keyup', (e) => {
-            this.pressed = false;
-            this.keyCode = null;
+            // this.pressed = false;
+            // this.keyCode = null;
+            this.repeat = null;
+            this.pressed[e.key] = false;
         }, false);
     }
 }
@@ -241,6 +267,7 @@ function setup() {
     girl.vx = 0;
     girl.scale.x = 0.2;
     girl.scale.y = 0.2;
+    girl.autoUpdate = true;
     girl.animationSpeed = 1;
     girl.play();
     landscape.addChild(girl);
@@ -306,26 +333,25 @@ function setup() {
         zombie.scale.y = 0.3;
         zombie.touch = false;
         bottomZombies.push(zombie);
-        copyofBottomZombies.push(zombie);
         zombie.play();
         landscape.addChild(zombie);
     }
 
-    // for(let i = 0; i < numberOfZomble; i++) {
-    //     let zombie = new PIXI.AnimatedSprite(zombieSheet.animations["zombie"]);
-    //     // let zombieHeight = zombie.height * 0.3;
-    //     zombie.x = xOffset + 500 + spacing * i;
-    //     zombie.animationSpeed = 0.5;
-    //     zombie.y = 80;
-    //     zombie.vy = 0;
-    //     zombie.vx = speed;
-    //     zombie.scale.x = 0.3;
-    //     zombie.scale.y = 0.3;
-    //     zombie.touch = false;
-    //     topZombies.push(zombie);
-    //     zombie.play();
-    //     landscape.addChild(zombie);
-    // }
+    for(let i = 0; i < numberOfZomble; i++) {
+        let zombie = new PIXI.AnimatedSprite(zombieSheet.animations["zombie"]);
+        // let zombieHeight = zombie.height * 0.3;
+        zombie.x = xOffset + 500 + spacing * i;
+        zombie.animationSpeed = 0.5;
+        zombie.y = 80;
+        zombie.vy = 0;
+        zombie.vx = speed;
+        zombie.scale.x = 0.3;
+        zombie.scale.y = 0.3;
+        zombie.touch = false;
+        topZombies.push(zombie);
+        zombie.play();
+        landscape.addChild(zombie);
+    }
 
     kb = new keyboroad();
     kb.watch();
@@ -334,33 +360,16 @@ function setup() {
     app.ticker.add(delta => gameLoop(delta));
 }
 
-function setFarViewPortX(newViewPortX, target) {
-    let distanceTravelled = newViewPortX - target.viewPortX;
-    target.viewPortX = newViewPortX;
-    target.tilePosition.x -= (distanceTravelled * target.DELTA_X);
-}
-
-function setViewPortX(viewPortX) {
-    farBuild.setViewPortX(viewPortX);
-    midBuild.setViewPortX(viewPortX);
-}
-
 function gameLoop(delta) {
     state(delta);
 }
 
-Array.prototype.insert = function ( index, item ) {
-    this.splice( index, 0, item );
-};
-
-
-
-function monsterAction(array, copyofArray) {
-    array.forEach((zombie, index) => {
+function monsterAction(array, keyboardEvent) {
+    array.forEach((zombie) => {
         if(array.length !== 0) {
+
             let leave = contain(zombie, landscape);
             if(leave == 'left') {
-                array.splice(0, 1);
                 zombie.x = -zombie.width;
                 zombie.vx = 0;
                 landscape.removeChild(zombie);
@@ -379,23 +388,23 @@ function monsterAction(array, copyofArray) {
             // } else if (detectAccuracy(catchPoints.bottom, array[0]).hit == 'miss') {
             //     girlHit = true;
             // }
+            // console.log(detectAccuracy(girl, array[0]).hit, keyboardEvent)
 
-            if(detectAccuracy(girl, array[0]).hit == 'miss' && missTrigger) {
+            if(detectAccuracy(girl, array[0], keyboardEvent) == 'miss' && missTrigger) {
                 missTrigger = false;
-                copyofArray.splice(0, 1);
+                array.splice(0, 1);
+                landscape.removeChild(zombie);
                 hitNumber.miss += 1;
                 failCombo();
-                // console.log(hitNumber.miss)
+
                 setTimeout(() => {
                     missTrigger = true;
                 }, 50);
-                // zombie.x = -zombie.width;
-                // zombie.vx = 0;
-                // landscape.removeChild(zombie);
-                // landscape.removeChild(array[0]);
 
-                // console.log("miss")
             }
+
+
+
 
             if(girlHit) {
                 if(Math.floor(healthBar.outer.width) == 0) {
@@ -418,83 +427,97 @@ function failCombo() {
     hitNumber.combo = 0;
 }
 
-function deleteZombie(array, copyofArray) {
-
+function deleteZombie(array, keyboardEvent) {
     if(array.length !== 0) {
-        console.log(array.indexOf(copyofArray[0]), 'clean')
-        let status = detectAccuracy(girl, array[array.indexOf(copyofArray[0])]).hit;
+
+        let status = detectAccuracy(girl, array[0], keyboardEvent);
+
         if (status !== 'miss') {
             if(status !== false) {
                 landscape.removeChild(array[0]);
                 array[0].destroy();
-                copyofArray.splice(0, 1);
                 array.splice(0, 1);
             }
         }
-
-
-        //         if(status == 'perfect') {
-        //             hitNumber.perfect += 1;
-        //             hitNumber.combo += 1;
-        //         } else if(status == 'great') {
-        //             hitNumber.great += 1;
-        //             hitNumber.combo += 1;
-        //         } else if(status == 'good') {
-        //             hitNumber.good += 1;
-        //             failCombo();
-        //         } else if(status == 'bad') {
-        //             hitNumber.bad += 1;
-        //             failCombo();
-        //         }
-        //     }
-        // }
+        if(status == 'perfect') {
+            hitNumber.perfect += 1;
+            hitNumber.combo += 1;
+        } else if(status == 'great') {
+            hitNumber.great += 1;
+            hitNumber.combo += 1;
+        } else if(status == 'good') {
+            hitNumber.good += 1;
+            failCombo();
+        } else if(status == 'bad') {
+            hitNumber.bad += 1;
+            failCombo();
+        }
     }
 }
 
 function play(delta) {
     farBuild.tilePosition.x -= 0.128;
     midBuild.tilePosition.x -= 0.64;
-    // zombie.x -= 1
 
-    monsterAction(bottomZombies, copyofBottomZombies);
-    // monsterAction(topZombies);
+    monsterAction(topZombies, kb.pressed.ArrowUp);
+    monsterAction(bottomZombies, kb.pressed.ArrowDown);
 
-    if (girl.vy > 0 && girl.y > 180) {
-        for(let i = 0; i < girl.vy; i++) {
+    console.log(hitNumber)
+
+    girl.vy = girl.vy + 1;
+    girl.x += girl.vx;
+    girl.y += girl.vy;
+
+    if (girl.vy > 0) {
+        // 往下的時候，要是人物位置大於180就固定在180，且不再增加速度，加上break來防止繼續演算
+        for (let i = 0; i < girl.vy; i++) {
+          let posY = girl.y;
+          if (posY > 180) {
             girl.vy = 0;
+            girl.y = 180;
             break;
+          }
         }
-        girl.y = 180;
     }
 
-    if(kb.pressed && !gameOver) {
-        deleteZombie(bottomZombies, copyofBottomZombies);
-        girl.y += girl.vy;
-        if(kb.keyCode == 'ArrowUp') {
-            girl.textures = jumpSheet.animations["Jump"];
-            girl.play();
-            if(girl.y <= 80) {
-                girl.vy = 0;
-            } else {
-                girl.vy = -20;
-            }
-        } else if(kb.keyCode == 'ArrowDown') {
-            girl.textures = runSheet.animations["Run"];
-            girl.play();
-            if(girl.y >= 180) {
-                girl.vy = 0;
-            } else {
-                girl.vy = 20;
+    if (girl.vy < 0) {
+        // 往上的時候，要是人物位置小於80就固定在80
+        for (let i = girl.vy; i < 0; i++) {
+            let posY = girl.y;
+            if (posY < 80) {
+                girl.y = 80;
             }
         }
+    }
 
-    } else {
-        // girl.textures = runSheet.animations["Run"];
-        // girl.gotoAndPlay(1);
-        // 給個重力
-        girl.vy = girl.vy + 1;
-        girl.x += girl.vx;
-        girl.y += girl.vy;
+    if (girl.y >= 80 && kb.repeat == true) {
+        // 常壓的時候就固定在上面
+        girl.y = 80;
+    }
+
+    if (!kb.pressed.ArrowUp && jumped) {
+        // 向上鍵放開往下掉的同時，重設跳躍狀態與重製成跑步狀態
+        jumped = false;
+        girl.textures = runSheet.animations["Run"];
+        girl.play();
+        girl.loop = true;
+    }
+    if (kb.pressed.ArrowUp && !jumped) {
+        // 按下向上鍵的時候，設定跳躍動作與跳躍狀態
+        girl.vy = -100;
+        jumped = true;
+        deleteZombie(topZombies, kb.pressed.ArrowUp);
+        girl.textures = jumpSheet.animations["Jump"];
+        girl.play();
+        girl.loop = false;
+    }
+
+    if (kb.pressed.ArrowDown) {
+        // 按下向下鍵的時候，快速回到下方
+        deleteZombie(bottomZombies, kb.pressed.ArrowDown);
+        if(girl.y <= 80) {
+            girl.vy = 100;
+        }
     }
 }
 
