@@ -2,14 +2,24 @@ import * as PIXI from "pixi.js";
 // import keybroadEvent from './keybroadEvent'
 
 const app = new PIXI.Application({width: 512, height: 384});
+app.view.id = "myCanvas";
+const wrapper = document.createElement('div');
+wrapper.appendChild(app.view);
+document.body.appendChild(wrapper);
+
+
 const Loader = new PIXI.Loader(),
       TilingSprite = PIXI.TilingSprite,
       Sprite = PIXI.Sprite,
       Container = PIXI.Container,
       resources = Loader.resources;
 
-document.body.appendChild(app.view);
-app.view.setAttribute('tabindex', 0);
+
+document.cancelFullScreen = document.cancelFullScreen || document.webkitCancelFullScreen || document.mozCancelFullScreen;
+let inFullscreen = false;
+let el = null;
+
+
 
 Loader
     .add('far', '/assets/images/bg-far.png')
@@ -24,12 +34,15 @@ Loader
     .add('fire', '/assets/images/fire.png')
     .load(setup);
 
-let state, landscape, farBuild, midBuild, front, kb, girl, deadSheet, runSheet, walkSheet, jumpSheet, zombieSheet, healthBar, catchPoints;
+let state, landscape, farBuild, midBuild, front, kb, girl, deadSheet, runSheet, walkSheet, jumpSheet, zombieSheet, healthBar, catchPoints, accuracy, numofCombo, score, hitStatus;
 let topZombies = [];
 let bottomZombies = [];
 let girlHit = false;
 let gameOver = false;
 let numberofHp = 3;
+let isRecorded = false;
+let hasItem = false;
+let recoredScore = false;
 let hitNumber = {
     "perfect": 0,
     "great": 0,
@@ -39,6 +52,19 @@ let hitNumber = {
     "combo": 0,
     "recordofCombo": [],
 }
+
+const basePoint = 5000;
+
+const accValue = {
+    'perfect': 1,
+    'great': 0.8,
+    'good': 0.5,
+    'bad': 0.2,
+    'miss': 0
+}
+
+let nowScoreValue = 0;
+
 let missTrigger = true;
 
 let jumped = false;
@@ -153,11 +179,15 @@ function detectAccuracy(r1, r2, keyboardEvent) {
     //     hit = 'miss';
     // }
 
-    if(r1.y == r2.y) {
+    if(keyboardEvent) {
         if (Math.abs(vx) < combinedHalfWidths && keyboardEvent) {
             hit = 'perfect';
         } else if (Math.abs(vx) < combinedHalfWidths * 1.2 && keyboardEvent) {
+            hit = 'great';
+        } else if (Math.abs(vx) < combinedHalfWidths * 1.5 && keyboardEvent) {
             hit = 'good';
+        } else if (Math.abs(vx) < combinedHalfWidths * 2 && keyboardEvent) {
+            hit = 'bad';
         } else if (Math.abs(vx) < combinedHalfWidths * 0.05 && !keyboardEvent) {
             hit = 'miss';
         } else {
@@ -226,6 +256,45 @@ function onTouchEnd(e) {
 }
 
 
+function createBtn(x, y) {
+    let btn = new PIXI.Sprite.from('https://pixijs.io/examples/examples/assets/bunny.png');
+    btn.interactive = true;
+    btn.buttonMode = true;
+    btn.on('pointerup', btn_onDragEnd);
+    btn.x = x;
+    btn.y = y;
+    landscape.addChild(btn);
+}
+
+function btn_onDragEnd() {
+    fullscreen(!inFullscreen);
+}
+
+function fullscreen(value) {
+	if(el == null) {
+		var el = wrapper;
+			el.addEventListener("webkitfullscreenchange", onFullscreenChange);
+			el.addEventListener("mozfullscreenchange", onFullscreenChange);
+			el.addEventListener("fullscreenchange", onFullscreenChange);
+	}
+
+	if(value) {
+		if ( el.webkitRequestFullScreen ) {
+			el.webkitRequestFullScreen(Element.ALLOW_KEYBOARD_INPUT);
+		} else {
+			el.mozRequestFullScreen();
+		}
+	}
+	else {
+		document.cancelFullScreen();
+	}
+}
+
+function onFullscreenChange(e) {
+	inFullscreen = !inFullscreen;
+    wrapper.className = inFullscreen ? 'fullscreen' : '';
+}
+
 function setup() {
 
     landscape = new Container();
@@ -258,6 +327,7 @@ function setup() {
     jumpSheet = Loader.resources.jump.spritesheet;
     zombieSheet = Loader.resources.zombie.spritesheet;
 
+    let _fullscreenBtn = createBtn(20, 20);
 
     girl = new PIXI.AnimatedSprite(runSheet.animations["Run"]);
     girl.animationSpeed = -0.167;
@@ -319,7 +389,45 @@ function setup() {
     let numberOfZomble = 10,
     spacing = 200,
     xOffset = 512,
-    speed = 6;
+    speed = 5;
+
+    accuracy = new PIXI.Text('', accuracyStyle);
+	accuracy.x = 195;
+	accuracy.y = 50;
+    landscape.addChild(accuracy);
+
+    numofCombo = new PIXI.Text('0', comboStyle);
+    numofCombo.x = 195;
+    numofCombo.y = 30;
+    landscape.addChild(numofCombo);
+
+    score = new PIXI.Text('0'. scoreStyle);
+    score.x = 400;
+    score.y = 30;
+    landscape.addChild(score);
+
+    const accuracyStyle = new PIXI.TextStyle({
+        fontFamily: 'Arial',
+        fontSize: 12,
+        fontWeight: 'bold',
+        fill: '#ffffff',
+        lineJoin: 'round'
+    });
+    const comboStyle = new PIXI.TextStyle({
+        fontFamily: 'Arial',
+        fontSize: 24,
+        fontWeight: 'bold',
+        fill: '#ffffff',
+        lineJoin: 'round'
+    });
+    const scoreStyle = new PIXI.TextStyle({
+        fontFamily: 'Arial',
+        fontSize: 12,
+        fontWeight: 'bold',
+        fill: '#ffffff',
+        lineJoin: 'round'
+    });
+
 
     for(let i = 0; i < numberOfZomble; i++) {
         let zombie = new PIXI.AnimatedSprite(zombieSheet.animations["zombie"]);
@@ -366,16 +474,16 @@ function gameLoop(delta) {
 
 function monsterAction(array, keyboardEvent) {
     array.forEach((zombie) => {
-        if(array.length !== 0) {
+        let leave = contain(zombie, landscape);
+        if(leave == 'left') {
+            zombie.x = -zombie.width;
+            zombie.vx = 0;
+            landscape.removeChild(zombie);
+        } else {
+            zombie.x -= zombie.vx;
+        }
 
-            let leave = contain(zombie, landscape);
-            if(leave == 'left') {
-                zombie.x = -zombie.width;
-                zombie.vx = 0;
-                landscape.removeChild(zombie);
-            } else {
-                zombie.x -= zombie.vx;
-            }
+        if(array.length !== 0) {
 
             // if(detectAccuracy(catchPoints.bottom, array[0]).hit !== 'miss') {
             //     if(detectAccuracy(catchPoints.bottom, array[0]).hit !== false) {
@@ -396,14 +504,14 @@ function monsterAction(array, keyboardEvent) {
                 landscape.removeChild(zombie);
                 hitNumber.miss += 1;
                 failCombo();
+                accuracy.text = 'miss';
+                hitStatus = 'miss';
+                recoredScore = true;
 
                 setTimeout(() => {
                     missTrigger = true;
                 }, 50);
-
             }
-
-
 
 
             if(girlHit) {
@@ -437,6 +545,9 @@ function deleteZombie(array, keyboardEvent) {
                 landscape.removeChild(array[0]);
                 array[0].destroy();
                 array.splice(0, 1);
+                accuracy.text = status;
+                hitStatus = status;
+                recoredScore = true;
             }
         }
         if(status == 'perfect') {
@@ -455,6 +566,38 @@ function deleteZombie(array, keyboardEvent) {
     }
 }
 
+function recoredLastofCombo() {
+    if(topZombies.length == 0 && bottomZombies.length == 0 && !isRecorded) {
+        isRecorded = true;
+        hitNumber.recordofCombo.push(hitNumber.combo);
+    }
+}
+
+function updateScore() {
+    const itemBonus = 1.5;
+    let accBonus;
+    let comboBonus = Math.floor(hitNumber.combo / 1000 + 1);
+
+    if(hitStatus !== undefined && recoredScore) {
+        if(hitStatus == 'perfect') {
+            accBonus = accValue.perfect;
+        } else if(hitStatus == 'great') {
+            accBonus = accValue.great;
+        } else if(hitStatus == 'good') {
+            accBonus = accValue.good;
+        } else if(hitStatus == 'bad') {
+            accBonus = accValue.bad;
+        } else if(hitStatus == 'miss') {
+            accBonus = accValue.miss;
+        }
+
+        hasItem ? nowScoreValue += basePoint * itemBonus * comboBonus * accBonus : nowScoreValue += basePoint * comboBonus * accBonus;
+        recoredScore = false;
+
+    }
+}
+
+
 function play(delta) {
     farBuild.tilePosition.x -= 0.128;
     midBuild.tilePosition.x -= 0.64;
@@ -462,7 +605,13 @@ function play(delta) {
     monsterAction(topZombies, kb.pressed.ArrowUp);
     monsterAction(bottomZombies, kb.pressed.ArrowDown);
 
-    console.log(hitNumber)
+    recoredLastofCombo();
+
+    numofCombo.text = hitNumber.combo;
+    updateScore();
+    score.text = nowScoreValue;
+
+    // hitNumber.combo == 0 ? numofCombo.alpha = 0 : numofCombo.alpha = 1;
 
     girl.vy = girl.vy + 1;
     girl.x += girl.vx;
