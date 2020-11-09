@@ -203,12 +203,52 @@ function detectAccuracy(r1, r2, arrayDirection, keyboardEvent) {
     return hit;
 };
 
+function detectStripeAcc(r1, r2) {
+
+    let fx, lx;
+    let detectLongPress = false;
+
+    r1.centerX = r1.x + r1.width / 2;
+    r1.centerY = r1.y + r1.height / 2;
+    r2.centerY = r2.y + r2.height / 2;
+    r2.lastX = r2.x + r2.width;
+
+    fx = r1.centerX - r2.x;
+    lx = r1.centerX - r2.lastX;
+
+    if(Math.abs(fx) < 50) {
+        if(kb.repeat) {
+            detectLongPress = true;
+            r2.inner.width -= 2;
+            r2.vx = 0;
+            if(r2.inner.width <= 0) {
+                r2.inner.width = 0;
+                r2.removeChild(r2.inner);
+                r2.inner.clear();
+            }
+            //這裡判定前端準度
+        } else {
+            r2.alpha = 0.5;
+            r2.vx = 5;
+        }
+    }
+
+    if(Math.abs(lx) < 50 && detectLongPress) {
+        //這裡判定尾端準度
+        // console.log("last")
+        detectLongPress = false;
+        if(!kb.repeat) return
+    }
+    // console.log(r2.x, r2.width, r2.lastX)
+}
+
 
 class keyboroad {
     constructor() {
         this.pressed = {};
         this.repeat = null;
         // this.keyCode = null;
+        this.timer = null;
     }
     watch = () => {
         window.addEventListener('keydown', (e) => {
@@ -220,18 +260,23 @@ class keyboroad {
                 //     this.keyCode = null;
                 // }, 15);
             // }
-            this.repeat = e.repeat;
             this.pressed[e.key] = true;
-            setTimeout(() => {
+            // this.repeat = e.repeat;
+            this.timer = setTimeout(() => {
                 this.pressed[e.key] = false;
+                this.longCheckEvent();
             }, 100);
         }, false);
         window.addEventListener('keyup', (e) => {
             // this.pressed = false;
             // this.keyCode = null;
             this.repeat = null;
+            if(this.timer) clearTimeout(this.timer);
             this.pressed[e.key] = false;
         }, false);
+    }
+    longCheckEvent = (key) => {
+        this.repeat = true;
     }
 }
 
@@ -314,6 +359,22 @@ function fullscreen(value) {
 function onFullscreenChange(e) {
 	inFullscreen = !inFullscreen;
     wrapper.className = inFullscreen ? 'fullscreen' : '';
+}
+
+function createStripe() {
+    let stripe = new Container();
+    stripe.vx = speed;
+    stripe.x = xOffset;
+    stripe.y = 115;
+    landscape.addChild(stripe);
+
+    let innerStripe = new PIXI.Graphics;
+    innerStripe.beginFill(0xDE3249);
+    innerStripe.drawRect(0, 0, 100, 30); // x, y, width, height
+    innerStripe.endFill;
+
+    stripe.addChild(innerStripe);
+    stripe.inner = innerStripe;
 }
 
 function setup() {
@@ -487,6 +548,7 @@ function setup() {
         landscape.addChild(zombie);
     }
 
+
     kb = new keyboroad();
     kb.watch();
 
@@ -500,7 +562,6 @@ function gameLoop(delta) {
 
 function monsterAction(array, arrayDirection, keyboardEvent) {
     if(array.length !== 0) {
-        console.log(array)
         array.forEach((zombie) => {
             let leave = contain(zombie, landscape);
             if(leave == 'left') {
@@ -599,11 +660,13 @@ function play(delta) {
     farBuild.tilePosition.x -= 0.128;
     midBuild.tilePosition.x -= 0.64;
 
-    monsterAction(topZombies, 'up', kb.pressed.ArrowUp);
-    monsterAction(bottomZombies, 'down', kb.pressed.ArrowDown);
+    // monsterAction(topZombies, 'up', kb.pressed.ArrowUp);
+    // monsterAction(bottomZombies, 'down', kb.pressed.ArrowDown);
+
+    stripe.x -= stripe.vx;
+    detectStripeAcc(girl, stripe);
 
     recoredLastofCombo();
-
     numofCombo.text = hitNumber.combo;
     updateScore();
     score.text = nowScoreValue;
@@ -636,7 +699,9 @@ function play(delta) {
         }
     }
 
-    if (girl.y >= 80 && kb.repeat == true) {
+    console.log(kb.repeat)
+
+    if (girl.y <= 80 && kb.repeat == true) {
         // 常壓的時候就固定在上面
         girl.y = 80;
     }
@@ -655,19 +720,46 @@ function play(delta) {
     }
 
 
-    if (!kb.pressed.ArrowUp && jumped || !touchevent.touch.up && jumped) {
+    if(touchevent !== undefined) {
+        if(!touchevent.touch.up && jumped) {
+            jumped = false;
+            girl.vy = -10;
+            girl.textures = runSheet.animations["Run"];
+            girl.play();
+            girl.loop = true;
+        }
+        if(touchevent.touch.up && !jumped) {
+            direction = 'up';
+            deleteZombie(topZombies, 'up', touchevent.touch.up);
+            girl.vy = -80;
+            jumped = true;
+            girl.textures = jumpSheet.animations["Jump"];
+            girl.play();
+            girl.loop = false;
+        }
+        if(touchevent.touch.down) {
+            direction = 'down';
+            deleteZombie(bottomZombies, 'down', touchevent.touch.down);
+
+            if(girl.y <= 80) {
+                girl.vy = 80;
+            }
+        }
+    }
+
+    if (!kb.pressed.ArrowUp && jumped) {
         // 向上鍵放開往下掉的同時，重設跳躍狀態與重製成跑步狀態
         jumped = false;
+        girl.vy = -10;
         girl.textures = runSheet.animations["Run"];
         girl.play();
         girl.loop = true;
     }
-    if (kb.pressed.ArrowUp && !jumped || touchevent.touch.up && !jumped) {
+    if (kb.pressed.ArrowUp && !jumped) {
         // 按下向上鍵的時候，設定跳躍動作與跳躍狀態
         // array, arrayDirection, keyboardEvent
         direction = 'up';
-        if(kb.pressed.ArrowUp) deleteZombie(topZombies, 'up', kb.pressed.ArrowUp);
-        if(touchevent.touch.up) deleteZombie(topZombies, 'up', touchevent.touch.up);
+        deleteZombie(topZombies, 'up', kb.pressed.ArrowUp);
 
         girl.vy = -80;
         jumped = true;
@@ -677,12 +769,11 @@ function play(delta) {
     }
 
 
-    if (kb.pressed.ArrowDown || touchevent.touch.down) {
+    if (kb.pressed.ArrowDown) {
         // 按下向下鍵的時候，快速回到下方
         // array, arrayDirection, keyboardEvent
         direction = 'down';
-        if (kb.pressed.ArrowDown) deleteZombie(bottomZombies, 'down', kb.pressed.ArrowDown);
-        if (touchevent.touch.down) deleteZombie(bottomZombies, 'down', touchevent.touch.down);
+        deleteZombie(bottomZombies, 'down', kb.pressed.ArrowDown);
 
         if(girl.y <= 80) {
             girl.vy = 80;
