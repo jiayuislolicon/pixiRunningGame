@@ -1,7 +1,7 @@
 import * as PIXI from "pixi.js";
 // import keybroadEvent from './keybroadEvent'
 
-const app = new PIXI.Application({width: 512, height: 384});
+const app = new PIXI.Application({width: 512, height: 288});
 app.view.id = "myCanvas";
 const wrapper = document.createElement('div');
 wrapper.appendChild(app.view);
@@ -53,6 +53,7 @@ let hitNumber = {
     "combo": 0,
     "recordofCombo": [],
 }
+let direction = 'down';
 
 const basePoint = 5000;
 
@@ -140,7 +141,7 @@ function contain(sprite, container) {
     return collision;
   }
 
-function detectAccuracy(r1, r2, keyboardEvent) {
+function detectAccuracy(r1, r2, arrayDirection, keyboardEvent) {
 
     //Define the variables we'll need to calculate
     let hit, combinedHalfWidths, combinedHalfHeights, vx, vy, testYaxis;
@@ -168,29 +169,23 @@ function detectAccuracy(r1, r2, keyboardEvent) {
     combinedHalfWidths = r1.halfWidth + r2.halfWidth;
     combinedHalfHeights = r1.halfHeight + r2.halfHeight;
 
-    // if (Math.abs(vx) < combinedHalfWidths) {
-    //     hit = 'perfect';
-    // } else if (Math.floor(vx) < combinedHalfWidths * 1.2) {
-    //     hit = 'great';
-    // } else if (Math.floor(vx) < combinedHalfWidths * 1.5) {
-    //     hit = 'good';
-    // } else if (Math.floor(vx) < combinedHalfWidths * 2) {
-    //     hit = 'bad';
-    // } else if (Math.floor(vx) < combinedHalfWidths * 0.05) {
-    //     hit = 'miss';
-    // }
-
-    if(keyboardEvent) {
+    if(arrayDirection == direction) {
         if (Math.abs(vx) < combinedHalfWidths && keyboardEvent) {
             hit = 'perfect';
+            girlHit = false;
         } else if (Math.abs(vx) < combinedHalfWidths * 1.2 && keyboardEvent) {
             hit = 'great';
+            girlHit = false;
         } else if (Math.abs(vx) < combinedHalfWidths * 1.5 && keyboardEvent) {
             hit = 'good';
+            girlHit = false;
         } else if (Math.abs(vx) < combinedHalfWidths * 2 && keyboardEvent) {
             hit = 'bad';
+            girlHit = false;
         } else if (Math.abs(vx) < combinedHalfWidths * 0.05 && !keyboardEvent) {
             hit = 'miss';
+            girlHit = true;
+            console.log('gotten')
         } else {
             hit = false;
         }
@@ -202,6 +197,7 @@ function detectAccuracy(r1, r2, keyboardEvent) {
           hit = false;
         }
     }
+
 
     //`hit` will be either `true` or `false`
     return hit;
@@ -239,28 +235,6 @@ class keyboroad {
     }
 }
 
-// let timer;
-// let touchduration = 500;
-// let onlongtouch;
-
-// function touchstart(direction) {
-//     timer = setTimeout(onlongtouch, touchduration);
-//     mobileTouch[direction] = true;
-//     console.log(mobileTouch);
-// }
-
-// function touchend(direction) {
-//     if(timer) {
-//         clearTimeout(timer);
-//     }
-//     mobileTouch[direction] = false;
-//     console.log(mobileTouch);
-// }
-
-// onlongtouch = () => {
-//     console.log("longtouch")
-// }
-
 class mobileTouchEvent {
     constructor() {
         this.touch = {
@@ -288,7 +262,7 @@ class mobileTouchEvent {
         btn.on('touchstart', () => {this.touchstart('up')});
         btn.on('touchend', () => {this.touchend('up')});
         btn.x = 40;
-        btn.y = 300;
+        btn.y = 200;
         landscape.addChild(btn);
     }
     createArrowdownBtn = () => {
@@ -298,7 +272,7 @@ class mobileTouchEvent {
         btn.on('touchstart', () => {this.touchstart('down')});
         btn.on('touchend', () => {this.touchend('down')});
         btn.x = 402;
-        btn.y = 300;
+        btn.y = 200;
         landscape.addChild(btn);
     }
 }
@@ -312,28 +286,6 @@ function createBtn(x, y) {
     btn.y = y;
     landscape.addChild(btn);
 }
-
-// function createArrowupBtn(x, y) {
-//     let btn = new PIXI.Sprite.from('https://pixijs.io/examples/examples/assets/bunny.png');
-//     btn.interactive = true;
-//     btn.buttonMode = true;
-//     btn.on('touchstart', () => {touchstart('ArrowUp')});
-//     btn.on('touchend', () => {touchend('ArrowUp')});
-//     btn.x = x;
-//     btn.y = y;
-//     landscape.addChild(btn);
-// }
-
-// function createArrowDownBtn(x, y) {
-//     let btn = new PIXI.Sprite.from('https://pixijs.io/examples/examples/assets/bunny.png');
-//     btn.interactive = true;
-//     btn.buttonMode = true;
-//     btn.on('touchstart', () => {touchstart('ArrowDown')});
-//     btn.on('touchend', () => {touchend('ArrowDown')});
-//     btn.x = x;
-//     btn.y = y;
-//     landscape.addChild(btn);
-// }
 
 function btn_onDragEnd() {
     fullscreen(!inFullscreen);
@@ -460,7 +412,7 @@ function setup() {
 
     catchPoints.bottom = bottomPoint;
 
-    let numberOfZomble = 10,
+    let numberOfZomble = 50,
     spacing = 200,
     xOffset = 512,
     speed = 5;
@@ -546,33 +498,19 @@ function gameLoop(delta) {
     state(delta);
 }
 
-function monsterAction(array, keyboardEvent) {
-    array.forEach((zombie) => {
-        let leave = contain(zombie, landscape);
-        if(leave == 'left') {
-            zombie.x = -zombie.width;
-            zombie.vx = 0;
-            landscape.removeChild(zombie);
-        } else {
-            zombie.x -= zombie.vx;
-        }
-
-        if(array.length !== 0) {
-
-            // if(detectAccuracy(catchPoints.bottom, array[0]).hit !== 'miss') {
-            //     if(detectAccuracy(catchPoints.bottom, array[0]).hit !== false) {
-            //         landscape.removeChild(array[0])
-            //         array[0].destroy();
-            //         array.splice(0, 1);
-            //         console.log(detectAccuracy(catchPoints.bottom, array[0]).combinedHalfWidths)
-            //         array[index] = null;
-            //     }
-            // } else if (detectAccuracy(catchPoints.bottom, array[0]).hit == 'miss') {
-            //     girlHit = true;
-            // }
-            // console.log(detectAccuracy(girl, array[0]).hit, keyboardEvent)
-
-            if(detectAccuracy(girl, array[0], keyboardEvent) == 'miss' && missTrigger) {
+function monsterAction(array, arrayDirection, keyboardEvent) {
+    if(array.length !== 0) {
+        console.log(array)
+        array.forEach((zombie) => {
+            let leave = contain(zombie, landscape);
+            if(leave == 'left') {
+                zombie.x = -zombie.width;
+                zombie.vx = 0;
+                landscape.removeChild(zombie);
+            } else {
+                zombie.x -= zombie.vx;
+            }
+            if(detectAccuracy(girl, array[0], arrayDirection, keyboardEvent) == 'miss' && missTrigger) {
                 missTrigger = false;
                 array.splice(0, 1);
                 landscape.removeChild(zombie);
@@ -586,22 +524,8 @@ function monsterAction(array, keyboardEvent) {
                     missTrigger = true;
                 }, 50);
             }
-
-
-            if(girlHit) {
-                if(Math.floor(healthBar.outer.width) == 0) {
-                    healthBar.outer.width = 0;
-                    girl.textures = deadSheet.animations["Dead"];
-                } else {
-                    healthBar.outer.width -= 10;
-                    girl.alpha = 0.5;
-                    girlHit = false;
-                }
-            } else {
-                girl.alpha = 1;
-            }
-        }
-    })
+        })
+    }
 }
 
 function failCombo() {
@@ -609,10 +533,9 @@ function failCombo() {
     hitNumber.combo = 0;
 }
 
-function deleteZombie(array, keyboardEvent) {
-    console.log(keyboardEvent)
+function deleteZombie(array, arrayDirection, keyboardEvent) {
     if(array.length !== 0) {
-        let status = detectAccuracy(girl, array[0], keyboardEvent);
+        let status = detectAccuracy(girl, array[0], arrayDirection, keyboardEvent);
 
         if (status !== 'miss') {
             if(status !== false) {
@@ -676,8 +599,8 @@ function play(delta) {
     farBuild.tilePosition.x -= 0.128;
     midBuild.tilePosition.x -= 0.64;
 
-    monsterAction(topZombies, kb.pressed.ArrowUp);
-    monsterAction(bottomZombies, kb.pressed.ArrowDown);
+    monsterAction(topZombies, 'up', kb.pressed.ArrowUp);
+    monsterAction(bottomZombies, 'down', kb.pressed.ArrowDown);
 
     recoredLastofCombo();
 
@@ -718,12 +641,22 @@ function play(delta) {
         girl.y = 80;
     }
 
+    if(girlHit) {
+        if(Math.floor(healthBar.outer.width) == 0) {
+            healthBar.outer.width = 0;
+            girl.textures = deadSheet.animations["Dead"];
+        } else {
+            healthBar.outer.width -= 10;
+            girl.alpha = 0.5;
+            girlHit = false;
+        }
+    } else {
+        girl.alpha = 1;
+    }
+
 
     if (!kb.pressed.ArrowUp && jumped || !touchevent.touch.up && jumped) {
         // 向上鍵放開往下掉的同時，重設跳躍狀態與重製成跑步狀態
-        if(kb.pressed.ArrowUp) deleteZombie(topZombies, kb.pressed.ArrowUp);
-        if(touchevent.touch.up) deleteZombie(topZombies, touchevent.touch.up);
-
         jumped = false;
         girl.textures = runSheet.animations["Run"];
         girl.play();
@@ -731,6 +664,11 @@ function play(delta) {
     }
     if (kb.pressed.ArrowUp && !jumped || touchevent.touch.up && !jumped) {
         // 按下向上鍵的時候，設定跳躍動作與跳躍狀態
+        // array, arrayDirection, keyboardEvent
+        direction = 'up';
+        if(kb.pressed.ArrowUp) deleteZombie(topZombies, 'up', kb.pressed.ArrowUp);
+        if(touchevent.touch.up) deleteZombie(topZombies, 'up', touchevent.touch.up);
+
         girl.vy = -80;
         jumped = true;
         girl.textures = jumpSheet.animations["Jump"];
@@ -741,8 +679,10 @@ function play(delta) {
 
     if (kb.pressed.ArrowDown || touchevent.touch.down) {
         // 按下向下鍵的時候，快速回到下方
-        if (kb.pressed.ArrowDown) deleteZombie(bottomZombies, kb.pressed.ArrowDown);
-        if (touchevent.touch.down) deleteZombie(bottomZombies, touchevent.touch.down);
+        // array, arrayDirection, keyboardEvent
+        direction = 'down';
+        if (kb.pressed.ArrowDown) deleteZombie(bottomZombies, 'down', kb.pressed.ArrowDown);
+        if (touchevent.touch.down) deleteZombie(bottomZombies, 'down', touchevent.touch.down);
 
         if(girl.y <= 80) {
             girl.vy = 80;
