@@ -34,9 +34,10 @@ Loader
     .add('fire', '/assets/images/fire.png')
     .load(setup);
 
-let state, landscape, farBuild, midBuild, front, kb, girl, deadSheet, runSheet, walkSheet, jumpSheet, zombieSheet, healthBar, catchPoints, accuracy, numofCombo, score, hitStatus;
+let state, landscape, farBuild, midBuild, front, kb, touchevent, girl, deadSheet, runSheet, walkSheet, jumpSheet, zombieSheet, healthBar, catchPoints, accuracy, numofCombo, score, hitStatus;
 let topZombies = [];
 let bottomZombies = [];
+// let mobileTouch = {};
 let girlHit = false;
 let gameOver = false;
 let numberofHp = 3;
@@ -238,23 +239,69 @@ class keyboroad {
     }
 }
 
-let touchStartTimeStamp = 0;
-let touchEndTimeStamp   = 0;
+// let timer;
+// let touchduration = 500;
+// let onlongtouch;
 
-window.addEventListener('touchstart', onTouchStart,false);
-window.addEventListener('touchend', onTouchEnd,false);
+// function touchstart(direction) {
+//     timer = setTimeout(onlongtouch, touchduration);
+//     mobileTouch[direction] = true;
+//     console.log(mobileTouch);
+// }
 
-let timer;
-function onTouchStart(e) {
-    touchStartTimeStamp = e.timeStamp;
+// function touchend(direction) {
+//     if(timer) {
+//         clearTimeout(timer);
+//     }
+//     mobileTouch[direction] = false;
+//     console.log(mobileTouch);
+// }
+
+// onlongtouch = () => {
+//     console.log("longtouch")
+// }
+
+class mobileTouchEvent {
+    constructor() {
+        this.touch = {
+            'up': false,
+            'down': false,
+        };
+        this.repeat = {};
+        this.timer = null;
+    }
+    touchstart = (direction) => {
+        this.timer = setTimeout(this.onlongtouch, 500);
+        this.touch[direction] = true;
+    }
+    touchend = (direction) => {
+        if(this.timer) clearTimeout(this.timer);
+        this.touch[direction] = false;
+    }
+    onlongtouch = () => {
+        console.log("longtouch")
+    }
+    createArrowupBtn = () => {
+        let btn = new PIXI.Sprite.from('/assets/images/hitPoint.png');
+        btn.interactive = true;
+        btn.buttonMode = true;
+        btn.on('touchstart', () => {this.touchstart('up')});
+        btn.on('touchend', () => {this.touchend('up')});
+        btn.x = 40;
+        btn.y = 300;
+        landscape.addChild(btn);
+    }
+    createArrowdownBtn = () => {
+        let btn = new PIXI.Sprite.from('/assets/images/hitPoint.png');
+        btn.interactive = true;
+        btn.buttonMode = true;
+        btn.on('touchstart', () => {this.touchstart('down')});
+        btn.on('touchend', () => {this.touchend('down')});
+        btn.x = 402;
+        btn.y = 300;
+        landscape.addChild(btn);
+    }
 }
-
-function onTouchEnd(e) {
-    touchEndTimeStamp = e.timeStamp;
-
-    document.querySelector("#app").innerHTML(touchEndTimeStamp - touchStartTimeStamp);// in miliseconds
-}
-
 
 function createBtn(x, y) {
     let btn = new PIXI.Sprite.from('https://pixijs.io/examples/examples/assets/bunny.png');
@@ -265,6 +312,28 @@ function createBtn(x, y) {
     btn.y = y;
     landscape.addChild(btn);
 }
+
+// function createArrowupBtn(x, y) {
+//     let btn = new PIXI.Sprite.from('https://pixijs.io/examples/examples/assets/bunny.png');
+//     btn.interactive = true;
+//     btn.buttonMode = true;
+//     btn.on('touchstart', () => {touchstart('ArrowUp')});
+//     btn.on('touchend', () => {touchend('ArrowUp')});
+//     btn.x = x;
+//     btn.y = y;
+//     landscape.addChild(btn);
+// }
+
+// function createArrowDownBtn(x, y) {
+//     let btn = new PIXI.Sprite.from('https://pixijs.io/examples/examples/assets/bunny.png');
+//     btn.interactive = true;
+//     btn.buttonMode = true;
+//     btn.on('touchstart', () => {touchstart('ArrowDown')});
+//     btn.on('touchend', () => {touchend('ArrowDown')});
+//     btn.x = x;
+//     btn.y = y;
+//     landscape.addChild(btn);
+// }
 
 function btn_onDragEnd() {
     fullscreen(!inFullscreen);
@@ -328,6 +397,11 @@ function setup() {
     zombieSheet = Loader.resources.zombie.spritesheet;
 
     let _fullscreenBtn = createBtn(20, 20);
+    if(window.innerWidth < 1280) {
+        touchevent = new mobileTouchEvent();
+        touchevent.createArrowupBtn();
+        touchevent.createArrowdownBtn();
+    }
 
     girl = new PIXI.AnimatedSprite(runSheet.animations["Run"]);
     girl.animationSpeed = -0.167;
@@ -536,8 +610,8 @@ function failCombo() {
 }
 
 function deleteZombie(array, keyboardEvent) {
+    console.log(keyboardEvent)
     if(array.length !== 0) {
-
         let status = detectAccuracy(girl, array[0], keyboardEvent);
 
         if (status !== 'miss') {
@@ -644,28 +718,34 @@ function play(delta) {
         girl.y = 80;
     }
 
-    if (!kb.pressed.ArrowUp && jumped) {
+
+    if (!kb.pressed.ArrowUp && jumped || !touchevent.touch.up && jumped) {
         // 向上鍵放開往下掉的同時，重設跳躍狀態與重製成跑步狀態
+        if(kb.pressed.ArrowUp) deleteZombie(topZombies, kb.pressed.ArrowUp);
+        if(touchevent.touch.up) deleteZombie(topZombies, touchevent.touch.up);
+
         jumped = false;
         girl.textures = runSheet.animations["Run"];
         girl.play();
         girl.loop = true;
     }
-    if (kb.pressed.ArrowUp && !jumped) {
+    if (kb.pressed.ArrowUp && !jumped || touchevent.touch.up && !jumped) {
         // 按下向上鍵的時候，設定跳躍動作與跳躍狀態
-        girl.vy = -100;
+        girl.vy = -80;
         jumped = true;
-        deleteZombie(topZombies, kb.pressed.ArrowUp);
         girl.textures = jumpSheet.animations["Jump"];
         girl.play();
         girl.loop = false;
     }
 
-    if (kb.pressed.ArrowDown) {
+
+    if (kb.pressed.ArrowDown || touchevent.touch.down) {
         // 按下向下鍵的時候，快速回到下方
-        deleteZombie(bottomZombies, kb.pressed.ArrowDown);
+        if (kb.pressed.ArrowDown) deleteZombie(bottomZombies, kb.pressed.ArrowDown);
+        if (touchevent.touch.down) deleteZombie(bottomZombies, touchevent.touch.down);
+
         if(girl.y <= 80) {
-            girl.vy = 100;
+            girl.vy = 80;
         }
     }
 }

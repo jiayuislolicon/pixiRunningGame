@@ -15,6 +15,10 @@ body {
     font-family: "Noto Sans TC", "微軟正黑體", "Microsoft JhengHei", "Segoe UI Semibold", "Segoe UI", "Lucida Grande", Verdana, Arial, Helvetica, sans-serif;
     margin: 0;
     height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: black;
 }
 img {
     border: 0;
@@ -26,6 +30,8 @@ svg {
 }
 
 canvas {
-    // width: 100vw;
-    // height: calc(100vw * 384 / 512);
+    width: 100vw;
+    height: calc(100vw * 384 / 512);
+    max-width: 800px;
+    max-height: 600px;
 }
