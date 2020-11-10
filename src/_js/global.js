@@ -65,8 +65,6 @@ spacing = 55,
 xOffset = 512,
 speed = 5;
 
-let stripes = [];
-
 const basePoint = 5000;
 
 const accValue = {
@@ -439,21 +437,20 @@ function onFullscreenChange(e) {
     wrapper.className = inFullscreen ? 'fullscreen' : '';
 }
 
-function createStripe() {
+function createStripe(index, array) {
+    let stripe = new PIXI.Graphics;
+    stripe.beginFill(0xDE3249);
+    stripe.drawRect(0, 0, 200, 30); // x, y, width, height
+    stripe.endFill;
 
-    for(let i = 0; i < numberOfZomble; i ++) {
-        let stripe = new PIXI.Graphics;
-        stripe.beginFill(0xDE3249);
-        stripe.drawRect(0, 0, 200, 30); // x, y, width, height
-        stripe.endFill;
+    stripe.vx = speed;
+    stripe.x = xOffset + index * spacing * 20;
+    stripe.y = 215;
 
-        stripe.vx = speed;
-        stripe.x = xOffset + i * spacing;
-        stripe.y = 115;
-        landscape.addChild(stripe);
+    let obj = {sprite: stripe, type: 'monster'};
 
-        stripes.push(stripe);
-    }
+    array.push(obj);
+    landscape.addChild(obj.sprite);
 }
 
 function createMonster(index, array) {
@@ -611,7 +608,8 @@ function setup() {
 
 
     for(let i = 0; i < numberOfZomble; i++) {
-        createMonster(i, bottomZombies);
+        // i == 2 || i == 4 ? createStripe(i, bottomZombies) : createMonster(i, bottomZombies);
+        createStripe(i, bottomZombies)
     }
 
     // for(let i = 0; i < numberOfZomble; i++) {
@@ -649,20 +647,20 @@ let nowHitItemNum = {
 };
 
 function monsterAction(array, arrayDirection, keyboardEvent) {
-    array.forEach((zombie) => {
-        let leave = contain(zombie.sprite, landscape);
+    array.forEach((item) => {
+        // 你各位啊，只要離開畫面的話，都會被拖到角落刪除的
+        let leave = contain(item.sprite, landscape);
         if(leave == 'left') {
-            zombie.sprite.x = -zombie.sprite.width;
-            zombie.sprite.vx = 0;
-            landscape.removeChild(zombie);
-            // zombie.destroy(); //不確定怎麼刪除才不會bug....
+            item.sprite.x = -item.sprite.width;
+            item.sprite.vx = 0;
+            landscape.removeChild(item);
+            // item.destroy(); //不確定怎麼用才不會bug...似乎這樣才能妥善釋放記憶體
         } else {
-            zombie.sprite.x -= zombie.sprite.vx;
+            item.sprite.x -= item.sprite.vx;
         }
     })
 
-
-    function detectMiss() {
+    function monsterMissAction() {
         missTrigger = false;
         hitNumber.miss += 1;
         failCombo();
@@ -675,18 +673,34 @@ function monsterAction(array, arrayDirection, keyboardEvent) {
         }, 50);
     }
 
+    function stripeMissAction(stripe) {
+        let nowAcc = window.innerWidth >= 1280 ?
+        nowAcc = detectStripeAcc(catchPoints, stripe, 'up', kb.pressed.ArrowUp) :
+        nowAcc = detectStripeAcc(catchPoints, stripe, 'up', touchevent.touch.up);
+    }
+
     if(array == topZombies) {
         if(nowHitItemNum.top <= array.length - 1) {
-            if(detectAccuracy(girl, array[nowHitItemNum.top].sprite, arrayDirection, keyboardEvent) == 'miss' && missTrigger) {
+            if(array[nowHitItemNum.top].type == 'monster') {
+                if(detectAccuracy(girl, array[nowHitItemNum.top].sprite, arrayDirection, keyboardEvent) == 'miss' && missTrigger) {
+                    nowHitItemNum.top += 1;
+                    monsterMissAction();
+                }
+            } else if(array[nowHitItemNum.top].type == 'stripe') {
                 nowHitItemNum.top += 1;
-                detectMiss();
+                stripeMissAction(array[nowHitItemNum.top].sprite);
             }
         }
     } else if(array == bottomZombies) {
         if(nowHitItemNum.bottom <= array.length - 1) {
-            if(detectAccuracy(girl, array[nowHitItemNum.bottom].sprite, arrayDirection, keyboardEvent) == 'miss' && missTrigger) {
+            if(array[nowHitItemNum.bottom].type == 'monster') {
+                if(detectAccuracy(girl, array[nowHitItemNum.bottom].sprite, arrayDirection, keyboardEvent) == 'miss' && missTrigger) {
+                    nowHitItemNum.bottom += 1;
+                    monsterMissAction(nowHitItemNum.bottom);
+                }
+            } else if(array[nowHitItemNum.top].type == 'stripe') {
                 nowHitItemNum.bottom += 1;
-                detectMiss(nowHitItemNum.bottom);
+                stripeMissAction(array[nowHitItemNum.bottom].sprite);
             }
         }
     }
@@ -698,27 +712,51 @@ function deleteZombie(array, arrayDirection, keyboardEvent) {
     let status;
     // let arrayNum = array == topZombies ? nowHitItemNum.top : nowHitItemNum.bottom;
 
+    function recoredAcc() {
+        accuracy.text = status;
+        hitStatus = status;
+        recoredScore = true;
+    }
+
     if(array == topZombies && nowHitItemNum.top <= array.length - 1) {
-        status = detectAccuracy(girl, array[nowHitItemNum.top].sprite, arrayDirection, keyboardEvent);
-        if (status !== 'miss' && status !== false ) {
-            landscape.removeChild(array[nowHitItemNum.top].sprite);
+        if(array[nowHitItemNum.top].sprite == 'monster') {
+            status = detectAccuracy(girl, array[nowHitItemNum.top].sprite, arrayDirection, keyboardEvent);
+            if (status !== 'miss' && status !== false ) {
+                nowHitItemNum.top += 1;
+                landscape.removeChild(array[nowHitItemNum.top].sprite);
+                recoredAcc();
+            }
+        } else if(array[nowHitItemNum.top].sprite == 'stripe') {
             nowHitItemNum.top += 1;
-            accuracy.text = status;
-            hitStatus = status;
-            recoredScore = true;
+            //步驟1：首先要先知道這該死的條hit是miss或false的嗎?
+            //步驟2：如果都不是，就先記錄hit的值
+            //步驟3：中間有miss的嗎？有的話 lastHit = miss就沒有步驟4了
+            //步驟4：最終收尾判定
+            // let status = window.innerWidth >= 1280 ?
+            // status = detectStripeAcc(catchPoints, stripe, 'up', kb.pressed.ArrowUp) :
+            // status = detectStripeAcc(catchPoints, stripe, 'up', touchevent.touch.up);
+            // recoredAcc();
         }
     } else if(array == bottomZombies && nowHitItemNum.bottom <= array.length - 1) {
-        status = detectAccuracy(girl, array[nowHitItemNum.bottom].sprite, arrayDirection, keyboardEvent);
-        if (status !== 'miss' && status !== false) {
-            landscape.removeChild(array[nowHitItemNum.bottom].sprite);
+        if(array[nowHitItemNum.top].sprite == 'monster') {
+            status = detectAccuracy(girl, array[nowHitItemNum.bottom].sprite, arrayDirection, keyboardEvent);
+            if (status !== 'miss' && status !== false) {
+                landscape.removeChild(array[nowHitItemNum.bottom].sprite);
+                nowHitItemNum.bottom += 1;
+                recoredAcc();
+            }
+        } else if(array[nowHitItemNum.top].sprite == 'stripe') {
             nowHitItemNum.bottom += 1;
-            accuracy.text = status;
-            hitStatus = status;
-            recoredScore = true;
+            // let status = window.innerWidth >= 1280 ?
+            // status = detectStripeAcc(catchPoints, stripe, 'up', kb.pressed.ArrowUp) :
+            // status = detectStripeAcc(catchPoints, stripe, 'up', touchevent.touch.up);
+            // console.log("a", status);
+            // recoredAcc();
+
         }
     }
 
-    
+
     if(status == 'perfect') {
         hitNumber.perfect += 1;
         hitNumber.combo += 1;
@@ -770,24 +808,6 @@ function updateScore() {
     }
 }
 
-function stripeAction() {
-    // console.log(stripes)
-    stripes.forEach((stripe) => {
-        stripe.x -= stripe.vx;
-        // r1, r2, arrayDirection, keyboardEvent
-        let nowAcc = window.innerWidth >= 1280 ?
-        nowAcc = detectStripeAcc(catchPoints, stripe, 'up', kb.pressed.ArrowUp) :
-        nowAcc = detectStripeAcc(catchPoints, stripe, 'up', touchevent.touch.up);
-
-        if(nowAcc.hit == 'miss' || nowAcc.lastHit == 'miss') {
-            // landscape.removeChild(stripes[0]);
-            // stripes[0].destroy();
-            // stripes.splice(0, 1);
-        }
-
-        // console.log(nowAcc.hit, nowAcc.lastHit)
-    })
-}
 
 function play(delta) {
     farBuild.tilePosition.x -= 0.128;
