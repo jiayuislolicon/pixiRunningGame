@@ -37,7 +37,7 @@ Loader
 let state, landscape, farBuild, midBuild, front, kb, touchevent, girl, deadSheet, runSheet, walkSheet, jumpSheet, zombieSheet, healthBar, catchPoints, accuracy, numofCombo, score, hitStatus;
 let topZombies = [];
 let bottomZombies = [];
-// let mobileTouch = {};
+
 let girlHit = false;
 let gameOver = false;
 let numberofHp = 3;
@@ -59,7 +59,7 @@ let isFirstStripe = true;
 let detectStripePressed = false;
 let islastStripe = true;
 
-let numberOfZomble = 5,
+let numberOfZomble = 2,
 spacing = 500,
 xOffset = 512,
 speed = 5;
@@ -258,49 +258,52 @@ function detectStripeAcc(r1, r2, arrayDirection, keyboardEvent) {
             hit = false;
         }
 
-        console.log(repeat)
+        if(Math.abs(fx) < 100) {
+            detectStripePressed = false;
+            if(hit !== 'miss' && repeat && !detectStripePressed) {
+                // 如果有按住的話，就會縮短
+                r2.width -= 5;
+                r2.vx = 0;
+                r2.alpha = 1;
 
-        if(hit !== 'miss' && repeat && !detectStripePressed) {
-            // 如果有按住的話，就會縮短
-            r2.inner.width -= 5;
-            r2.vx = 0;
-            r2.alpha = 1;
-            if(r2.inner.width <= 0) {
-                r2.inner.width = 0;
-                r2.removeChild(r2.inner);
-                r2.inner.clear();
-                lastHit = 'miss';
-                detectStripePressed = true;
-            }
-        } else if(hit !== 'miss' && !repeat && !detectStripePressed) {
-            // 如果放掉了就無法繼續
-            detectStripePressed = true;
-            r2.vx = speed;
-            r2.alpha = 0.5;
-
-            if(Math.abs(lx) < 50 * 2) {
-                if(islastStripe) {
-                    islastStripe = false;
-                    if (Math.abs(lx) < 50) {
-                        lastHit = 'perfect';
-                        girlHit = false;
-                    } else if (Math.abs(lx) < 50 * 1.2) {
-                        lastHit = 'great';
-                        girlHit = false;
-                    } else if (Math.abs(lx) < 50 * 1.5) {
-                        lastHit = 'good';
-                        girlHit = false;
-                    } else if (Math.abs(lx) < 50 * 2) {
-                        lastHit = 'bad';
-                        girlHit = false;
-                    } else {
-                        lastHit = false;
-                    }
+                if(r2.width <= 0) {
+                    r2.width = 0;
+                    r2.removeChild(r2);
+                    r2.clear();
+                    lastHit = 'miss';
+                    detectStripePressed = true;
                 }
-            } else {
-                lastHit = 'miss';
+            } else if(hit !== 'miss' && !repeat && !detectStripePressed) {
+                // 如果放掉了就無法繼續
+                detectStripePressed = true;
+                r2.vx = speed;
+                r2.alpha = 0.5;
+
+                if(Math.abs(lx) < 50 * 2) {
+                    if(islastStripe) {
+                        islastStripe = false;
+                        if (Math.abs(lx) < 50) {
+                            lastHit = 'perfect';
+                            girlHit = false;
+                        } else if (Math.abs(lx) < 50 * 1.2) {
+                            lastHit = 'great';
+                            girlHit = false;
+                        } else if (Math.abs(lx) < 50 * 1.5) {
+                            lastHit = 'good';
+                            girlHit = false;
+                        } else if (Math.abs(lx) < 50 * 2) {
+                            lastHit = 'bad';
+                            girlHit = false;
+                        } else {
+                            lastHit = false;
+                        }
+                    }
+                } else {
+                    lastHit = 'miss';
+                }
             }
         }
+
 
     } else {
         if (Math.abs(fx) < 50 * 0.05) {
@@ -315,7 +318,6 @@ function detectStripeAcc(r1, r2, arrayDirection, keyboardEvent) {
 
     return {hit, lastHit}
 }
-
 
 class keyboroad {
     constructor() {
@@ -436,20 +438,16 @@ function onFullscreenChange(e) {
 function createStripe() {
 
     for(let i = 0; i < numberOfZomble; i ++) {
-        let stripe = new Container();
+        let stripe = new PIXI.Graphics;
+        stripe.beginFill(0xDE3249);
+        stripe.drawRect(0, 0, 200, 30); // x, y, width, height
+        stripe.endFill;
+
         stripe.vx = speed;
         stripe.x = xOffset + i * spacing;
         stripe.y = 115;
         landscape.addChild(stripe);
-    
-        let innerStripe = new PIXI.Graphics;
-        innerStripe.beginFill(0xDE3249);
-        innerStripe.drawRect(0, 0, 500, 30); // x, y, width, height
-        innerStripe.endFill;
-    
-        stripe.addChild(innerStripe);
-        stripe.inner = innerStripe;
-    
+
         stripes.push(stripe);
     }
 }
@@ -729,7 +727,7 @@ function updateScore() {
 }
 
 function stripeAction() {
-    console.log(stripes)
+    // console.log(stripes)
     stripes.forEach((stripe) => {
         stripe.x -= stripe.vx;
         // r1, r2, arrayDirection, keyboardEvent
@@ -738,9 +736,9 @@ function stripeAction() {
         nowAcc = detectStripeAcc(catchPoints, stripe, 'up', touchevent.touch.up);
 
         if(nowAcc.hit == 'miss' || nowAcc.lastHit == 'miss') {
-            landscape.removeChild(stripes[0]);
-            stripes[0].destroy();
-            stripes.splice(0, 1);
+            // landscape.removeChild(stripes[0]);
+            // stripes[0].destroy();
+            // stripes.splice(0, 1);
         }
 
         // console.log(nowAcc.hit, nowAcc.lastHit)
@@ -811,7 +809,6 @@ function play(delta) {
 
     if(touchevent !== undefined) {
         if(!touchevent.touch.up && jumped) {
-            direction = 'down';
             jumped = false;
             girl.vy = -10;
             girl.textures = runSheet.animations["Run"];
@@ -840,9 +837,12 @@ function play(delta) {
         }
     }
 
-    if(!kb.pressed.ArrowUp && !kb.repeat) {
-        direction = 'down';
+    if(touchevent == undefined) {
+        if(!kb.pressed.ArrowUp && !kb.repeat) {
+            direction = 'down';
+        }
     }
+
 
     if (!kb.pressed.ArrowUp && jumped) {
         // 向上鍵放開往下掉的同時，重設跳躍狀態與重製成跑步狀態
