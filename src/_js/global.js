@@ -38,6 +38,7 @@ let state, landscape, farBuild, midBuild, front, kb, touchevent, girl, deadSheet
 let topZombies = [];
 let bottomZombies = [];
 
+let offKeyborad = false;
 let girlHit = false;
 let gameOver = false;
 let numberofHp = 3;
@@ -59,8 +60,8 @@ let isFirstStripe = true;
 let detectStripePressed = false;
 let islastStripe = true;
 
-let numberOfZomble = 2,
-spacing = 500,
+let numberOfZomble = 10,
+spacing = 55,
 xOffset = 512,
 speed = 5;
 
@@ -190,7 +191,7 @@ function detectAccuracy(r1, r2, arrayDirection, keyboardEvent) {
         } else if (Math.abs(vx) < combinedHalfWidths * 1.5 && keyboardEvent) {
             hit = 'good';
             girlHit = false;
-        } else if (Math.abs(vx) < combinedHalfWidths * 2 && keyboardEvent) {
+        } else if (Math.abs(vx) < combinedHalfWidths * 1.8 && keyboardEvent) {
             hit = 'bad';
             girlHit = false;
         } else if (Math.abs(vx) < combinedHalfWidths * 0.05 && !keyboardEvent) {
@@ -329,17 +330,20 @@ class keyboroad {
     }
     watch = () => {
         window.addEventListener('keydown', (e) => {
-            this.pressed[e.key] = true;
-            // this.repeat = e.repeat;
-            this.timer = setTimeout(() => {
-                this.pressed[e.key] = false;
-            }, 100);
+            if(offKeyborad == false) {
+                this.pressed[e.key] = true;
+                this.timer = setTimeout(() => {
+                    this.pressed[e.key] = false;
+                }, 20);
+                this.detectRepeatTimer = setTimeout(this.longCheckEvent(), 50);
+                offKeyborad = true;
+            }
 
-            this.detectRepeatTimer = setTimeout(this.longCheckEvent(), 50);
         }, false);
         window.addEventListener('keyup', (e) => {
             // this.pressed = false;
             // this.keyCode = null;
+            offKeyborad = false;
             this.repeat = null;
             if(this.timer) clearTimeout(this.timer);
             if(this.detectRepeatTimer) clearTimeout(this.detectRepeatTimer);
@@ -450,6 +454,26 @@ function createStripe() {
 
         stripes.push(stripe);
     }
+}
+
+function createMonster(index, array) {
+    let zombie = new PIXI.AnimatedSprite(zombieSheet.animations["zombie"]);
+    // let zombieHeight = zombie.height * 0.3;
+    zombie.animationSpeed = 0.5;
+    zombie.x = xOffset + spacing * index;
+    zombie.y = 180;
+    zombie.vy = 0;
+    zombie.vx = speed;
+    zombie.scale.x = 0.3;
+    zombie.scale.y = 0.3;
+    zombie.touch = false;
+
+    let obj = {sprite: zombie, type: 'monster'};
+
+    array.push(obj);
+    zombie.play();
+
+    landscape.addChild(obj.sprite);
 }
 
 function setup() {
@@ -587,38 +611,26 @@ function setup() {
 
 
     for(let i = 0; i < numberOfZomble; i++) {
-        let zombie = new PIXI.AnimatedSprite(zombieSheet.animations["zombie"]);
-        // let zombieHeight = zombie.height * 0.3;
-        zombie.animationSpeed = 0.5;
-        zombie.x = xOffset + spacing * i;
-        zombie.y = 180;
-        zombie.vy = 0;
-        zombie.vx = speed;
-        zombie.scale.x = 0.3;
-        zombie.scale.y = 0.3;
-        zombie.touch = false;
-        bottomZombies.push(zombie);
-        zombie.play();
-        landscape.addChild(zombie);
+        createMonster(i, bottomZombies);
     }
 
-    for(let i = 0; i < numberOfZomble; i++) {
-        let zombie = new PIXI.AnimatedSprite(zombieSheet.animations["zombie"]);
-        // let zombieHeight = zombie.height * 0.3;
-        zombie.x = xOffset + 500 + spacing * i;
-        zombie.animationSpeed = 0.5;
-        zombie.y = 80;
-        zombie.vy = 0;
-        zombie.vx = speed;
-        zombie.scale.x = 0.3;
-        zombie.scale.y = 0.3;
-        zombie.touch = false;
-        topZombies.push(zombie);
-        zombie.play();
-        landscape.addChild(zombie);
-    }
+    // for(let i = 0; i < numberOfZomble; i++) {
+    //     let zombie = new PIXI.AnimatedSprite(zombieSheet.animations["zombie"]);
+    //     // let zombieHeight = zombie.height * 0.3;
+    //     zombie.x = xOffset + 500 + spacing * i;
+    //     zombie.animationSpeed = 0.5;
+    //     zombie.y = 80;
+    //     zombie.vy = 0;
+    //     zombie.vx = speed;
+    //     zombie.scale.x = 0.3;
+    //     zombie.scale.y = 0.3;
+    //     zombie.touch = false;
+    //     topZombies.push(zombie);
+    //     zombie.play();
+    //     landscape.addChild(zombie);
+    // }
 
-    createStripe();
+    // createStripe();
 
     kb = new keyboroad();
     kb.watch();
@@ -631,68 +643,100 @@ function gameLoop(delta) {
     state(delta);
 }
 
-function monsterAction(array, arrayDirection, keyboardEvent) {
-    if(array.length !== 0) {
-        array.forEach((zombie) => {
-            let leave = contain(zombie, landscape);
-            if(leave == 'left') {
-                zombie.x = -zombie.width;
-                zombie.vx = 0;
-                landscape.removeChild(zombie);
-            } else {
-                zombie.x -= zombie.vx;
-            }
-            if(detectAccuracy(girl, array[0], arrayDirection, keyboardEvent) == 'miss' && missTrigger) {
-                missTrigger = false;
-                array.splice(0, 1);
-                landscape.removeChild(zombie);
-                hitNumber.miss += 1;
-                failCombo();
-                accuracy.text = 'miss';
-                hitStatus = 'miss';
-                recoredScore = true;
+let nowHitItemNum = {
+    top: 0,
+    bottom: 0
+};
 
-                setTimeout(() => {
-                    missTrigger = true;
-                }, 50);
+function monsterAction(array, arrayDirection, keyboardEvent) {
+    array.forEach((zombie) => {
+        let leave = contain(zombie.sprite, landscape);
+        if(leave == 'left') {
+            zombie.sprite.x = -zombie.sprite.width;
+            zombie.sprite.vx = 0;
+            landscape.removeChild(zombie);
+            // zombie.destroy(); //不確定怎麼刪除才不會bug....
+        } else {
+            zombie.sprite.x -= zombie.sprite.vx;
+        }
+    })
+
+
+    function detectMiss() {
+        missTrigger = false;
+        hitNumber.miss += 1;
+        failCombo();
+        accuracy.text = 'miss';
+        hitStatus = 'miss';
+        recoredScore = true;
+
+        setTimeout(() => {
+            missTrigger = true;
+        }, 50);
+    }
+
+    if(array == topZombies) {
+        if(nowHitItemNum.top <= array.length - 1) {
+            if(detectAccuracy(girl, array[nowHitItemNum.top].sprite, arrayDirection, keyboardEvent) == 'miss' && missTrigger) {
+                nowHitItemNum.top += 1;
+                detectMiss();
             }
-        })
+        }
+    } else if(array == bottomZombies) {
+        if(nowHitItemNum.bottom <= array.length - 1) {
+            if(detectAccuracy(girl, array[nowHitItemNum.bottom].sprite, arrayDirection, keyboardEvent) == 'miss' && missTrigger) {
+                nowHitItemNum.bottom += 1;
+                detectMiss(nowHitItemNum.bottom);
+            }
+        }
+    }
+
+}
+
+
+function deleteZombie(array, arrayDirection, keyboardEvent) {
+    let status;
+    // let arrayNum = array == topZombies ? nowHitItemNum.top : nowHitItemNum.bottom;
+
+    if(array == topZombies && nowHitItemNum.top <= array.length - 1) {
+        status = detectAccuracy(girl, array[nowHitItemNum.top].sprite, arrayDirection, keyboardEvent);
+        if (status !== 'miss' && status !== false ) {
+            landscape.removeChild(array[nowHitItemNum.top].sprite);
+            nowHitItemNum.top += 1;
+            accuracy.text = status;
+            hitStatus = status;
+            recoredScore = true;
+        }
+    } else if(array == bottomZombies && nowHitItemNum.bottom <= array.length - 1) {
+        status = detectAccuracy(girl, array[nowHitItemNum.bottom].sprite, arrayDirection, keyboardEvent);
+        if (status !== 'miss' && status !== false) {
+            landscape.removeChild(array[nowHitItemNum.bottom].sprite);
+            nowHitItemNum.bottom += 1;
+            accuracy.text = status;
+            hitStatus = status;
+            recoredScore = true;
+        }
+    }
+
+    
+    if(status == 'perfect') {
+        hitNumber.perfect += 1;
+        hitNumber.combo += 1;
+    } else if(status == 'great') {
+        hitNumber.great += 1;
+        hitNumber.combo += 1;
+    } else if(status == 'good') {
+        hitNumber.good += 1;
+        failCombo();
+    } else if(status == 'bad') {
+        hitNumber.bad += 1;
+        failCombo();
     }
 }
 
 function failCombo() {
     hitNumber.recordofCombo.push(hitNumber.combo);
     hitNumber.combo = 0;
-}
-
-function deleteZombie(array, arrayDirection, keyboardEvent) {
-    if(array.length !== 0) {
-        let status = detectAccuracy(girl, array[0], arrayDirection, keyboardEvent);
-
-        if (status !== 'miss') {
-            if(status !== false) {
-                landscape.removeChild(array[0]);
-                array[0].destroy();
-                array.splice(0, 1);
-                accuracy.text = status;
-                hitStatus = status;
-                recoredScore = true;
-            }
-        }
-        if(status == 'perfect') {
-            hitNumber.perfect += 1;
-            hitNumber.combo += 1;
-        } else if(status == 'great') {
-            hitNumber.great += 1;
-            hitNumber.combo += 1;
-        } else if(status == 'good') {
-            hitNumber.good += 1;
-            failCombo();
-        } else if(status == 'bad') {
-            hitNumber.bad += 1;
-            failCombo();
-        }
-    }
 }
 
 function recoredLastofCombo() {
@@ -750,8 +794,9 @@ function play(delta) {
     midBuild.tilePosition.x -= 0.64;
 
     // monsterAction(topZombies, 'up', kb.pressed.ArrowUp);
-    // monsterAction(bottomZombies, 'down', kb.pressed.ArrowDown);
-    stripeAction();
+    monsterAction(bottomZombies, 'down', kb.pressed.ArrowDown);
+    // console.log(kb.pressed.ArrowDown)
+    // stripeAction();
 
     recoredLastofCombo();
     numofCombo.text = hitNumber.combo;
@@ -759,6 +804,7 @@ function play(delta) {
     score.text = nowScoreValue;
 
     // hitNumber.combo == 0 ? numofCombo.alpha = 0 : numofCombo.alpha = 1;
+
 
     girl.vy = girl.vy + 1;
     girl.x += girl.vx;
