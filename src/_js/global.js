@@ -55,8 +55,12 @@ let hitNumber = {
 }
 let direction = 'down';
 
-let numberOfZomble = 1,
-spacing = 200,
+let isFirstStripe = true;
+let detectStripePressed = false;
+let islastStripe = true;
+
+let numberOfZomble = 5,
+spacing = 500,
 xOffset = 512,
 speed = 5;
 
@@ -75,8 +79,6 @@ const accValue = {
 let nowScoreValue = 0;
 
 let missTrigger = true;
-
-let stripeTrigger = false;
 
 let jumped = false;
 
@@ -213,8 +215,9 @@ function detectAccuracy(r1, r2, arrayDirection, keyboardEvent) {
 
 function detectStripeAcc(r1, r2, arrayDirection, keyboardEvent) {
 
-    let fx, lx, hit;
-    let detectLongPress = false;
+    let repeat = window.innerWidth >= 1280 ? kb.repeat : touchevent.repeat;
+
+    let fx, lx, hit, lastHit;
 
     r1.centerX = r1.x + r1.width / 2;
     r1.centerY = r1.y + r1.height / 2;
@@ -229,52 +232,80 @@ function detectStripeAcc(r1, r2, arrayDirection, keyboardEvent) {
     // 最後判定放開時間
 
     if(arrayDirection == direction) {
-        if (Math.abs(fx) < 50 && keyboardEvent) {
-            hit = 'perfect';
-            girlHit = false;
-        } else if (Math.abs(fx) < 50 * 1.2 && keyboardEvent) {
-            hit = 'great';
-            girlHit = false;
-        } else if (Math.abs(fx) < 50 * 1.5 && keyboardEvent) {
-            hit = 'good';
-            girlHit = false;
-        } else if (Math.abs(fx) < 50 * 2 && keyboardEvent) {
-            hit = 'bad';
-            girlHit = false;
-        } else if (Math.abs(fx) < 50 * 0.05 && !keyboardEvent) {
-            hit = 'miss';
-            r2.alpha = 0.5;
-            girlHit = true;
+        if(isFirstStripe) {
+            isFirstStripe = false;
+            if (Math.abs(fx) < 50 && keyboardEvent) {
+                hit = 'perfect';
+                girlHit = false;
+            } else if (Math.abs(fx) < 50 * 1.2 && keyboardEvent) {
+                hit = 'great';
+                girlHit = false;
+            } else if (Math.abs(fx) < 50 * 1.5 && keyboardEvent) {
+                hit = 'good';
+                girlHit = false;
+            } else if (Math.abs(fx) < 50 * 2 && keyboardEvent) {
+                hit = 'bad';
+                girlHit = false;
+            } else if (Math.abs(fx) < 50 * 0.05 && !keyboardEvent) {
+                hit = 'miss';
+                lastHit = 'miss';
+                r2.alpha = 0.5;
+                girlHit = true;
+            } else {
+                hit = false;
+            }
         } else {
             hit = false;
         }
 
-        if(Math.abs(lx) < 50 && !kb.repeat) {
-            //這裡判定尾端準度
-            console.log("test")
-        }
+        console.log(repeat)
 
-        stripeTrigger = true;
-
-        if(!kb.repeat && stripeTrigger) {
-            // 如果放掉了就無法連續
-            stripeTrigger = false;
-            r2.vx = speed;
-        }
-
-        if(kb.repeat && stripeTrigger) {
+        if(hit !== 'miss' && repeat && !detectStripePressed) {
             // 如果有按住的話，就會縮短
-            r2.inner.width -= 10;
+            r2.inner.width -= 5;
             r2.vx = 0;
+            r2.alpha = 1;
             if(r2.inner.width <= 0) {
                 r2.inner.width = 0;
                 r2.removeChild(r2.inner);
                 r2.inner.clear();
+                lastHit = 'miss';
+                detectStripePressed = true;
+            }
+        } else if(hit !== 'miss' && !repeat && !detectStripePressed) {
+            // 如果放掉了就無法繼續
+            detectStripePressed = true;
+            r2.vx = speed;
+            r2.alpha = 0.5;
+
+            if(Math.abs(lx) < 50 * 2) {
+                if(islastStripe) {
+                    islastStripe = false;
+                    if (Math.abs(lx) < 50) {
+                        lastHit = 'perfect';
+                        girlHit = false;
+                    } else if (Math.abs(lx) < 50 * 1.2) {
+                        lastHit = 'great';
+                        girlHit = false;
+                    } else if (Math.abs(lx) < 50 * 1.5) {
+                        lastHit = 'good';
+                        girlHit = false;
+                    } else if (Math.abs(lx) < 50 * 2) {
+                        lastHit = 'bad';
+                        girlHit = false;
+                    } else {
+                        lastHit = false;
+                    }
+                }
+            } else {
+                lastHit = 'miss';
             }
         }
-    }else {
+
+    } else {
         if (Math.abs(fx) < 50 * 0.05) {
             hit = 'miss';
+            lastHit = 'miss';
             r2.alpha = 0.5;
         } else {
           //There's no collision on the x axis
@@ -282,9 +313,7 @@ function detectStripeAcc(r1, r2, arrayDirection, keyboardEvent) {
         }
     }
 
-    
-
-    return hit
+    return {hit, lastHit}
 }
 
 
@@ -294,29 +323,24 @@ class keyboroad {
         this.repeat = null;
         // this.keyCode = null;
         this.timer = null;
+        this.detectRepeatTimer = null;
     }
     watch = () => {
         window.addEventListener('keydown', (e) => {
-            // if(e.code !== this.keyCode && !this.pressed && !e.repeat ) {
-            //     this.pressed = true;
-            //     this.keyCode = e.key;
-                // setTimeout(() => {
-                //     this.pressed = false;
-                //     this.keyCode = null;
-                // }, 15);
-            // }
             this.pressed[e.key] = true;
             // this.repeat = e.repeat;
             this.timer = setTimeout(() => {
                 this.pressed[e.key] = false;
-                this.longCheckEvent();
             }, 100);
+
+            this.detectRepeatTimer = setTimeout(this.longCheckEvent(), 50);
         }, false);
         window.addEventListener('keyup', (e) => {
             // this.pressed = false;
             // this.keyCode = null;
             this.repeat = null;
             if(this.timer) clearTimeout(this.timer);
+            if(this.detectRepeatTimer) clearTimeout(this.detectRepeatTimer);
             this.pressed[e.key] = false;
         }, false);
     }
@@ -331,19 +355,22 @@ class mobileTouchEvent {
             'up': false,
             'down': false,
         };
-        this.repeat = {};
+        this.repeat = null;
         this.timer = null;
     }
     touchstart = (direction) => {
-        this.timer = setTimeout(this.onlongtouch, 500);
+        // this.timer = setTimeout(this.onlongtouch, 50);
+        this.onlongtouch()
         this.touch[direction] = true;
     }
     touchend = (direction) => {
         if(this.timer) clearTimeout(this.timer);
         this.touch[direction] = false;
+        this.repeat = null;
     }
     onlongtouch = () => {
-        console.log("longtouch")
+        console.log("longtouch");
+        this.repeat = true;
     }
     createArrowupBtn = () => {
         let btn = new PIXI.Sprite.from('/assets/images/hitPoint.png');
@@ -417,7 +444,7 @@ function createStripe() {
     
         let innerStripe = new PIXI.Graphics;
         innerStripe.beginFill(0xDE3249);
-        innerStripe.drawRect(0, 0, 100, 30); // x, y, width, height
+        innerStripe.drawRect(0, 0, 500, 30); // x, y, width, height
         innerStripe.endFill;
     
         stripe.addChild(innerStripe);
@@ -594,7 +621,6 @@ function setup() {
     }
 
     createStripe();
-    
 
     kb = new keyboroad();
     kb.watch();
@@ -703,9 +729,21 @@ function updateScore() {
 }
 
 function stripeAction() {
+    console.log(stripes)
     stripes.forEach((stripe) => {
         stripe.x -= stripe.vx;
-        detectStripeAcc(girl, stripe);
+        // r1, r2, arrayDirection, keyboardEvent
+        let nowAcc = window.innerWidth >= 1280 ?
+        nowAcc = detectStripeAcc(catchPoints, stripe, 'up', kb.pressed.ArrowUp) :
+        nowAcc = detectStripeAcc(catchPoints, stripe, 'up', touchevent.touch.up);
+
+        if(nowAcc.hit == 'miss' || nowAcc.lastHit == 'miss') {
+            landscape.removeChild(stripes[0]);
+            stripes[0].destroy();
+            stripes.splice(0, 1);
+        }
+
+        // console.log(nowAcc.hit, nowAcc.lastHit)
     })
 }
 
@@ -753,6 +791,7 @@ function play(delta) {
 
     if (girl.y <= 80 && kb.repeat == true) {
         // 常壓的時候就固定在上面
+        // direction = 'up';
         girl.y = 80;
     }
 
@@ -772,6 +811,7 @@ function play(delta) {
 
     if(touchevent !== undefined) {
         if(!touchevent.touch.up && jumped) {
+            direction = 'down';
             jumped = false;
             girl.vy = -10;
             girl.textures = runSheet.animations["Run"];
@@ -795,6 +835,13 @@ function play(delta) {
                 girl.vy = 80;
             }
         }
+        if(!touchevent.touch.up && !touchevent.repeat) {
+            direction = 'down';
+        }
+    }
+
+    if(!kb.pressed.ArrowUp && !kb.repeat) {
+        direction = 'down';
     }
 
     if (!kb.pressed.ArrowUp && jumped) {
