@@ -55,6 +55,13 @@ let hitNumber = {
 }
 let direction = 'down';
 
+let numberOfZomble = 1,
+spacing = 200,
+xOffset = 512,
+speed = 5;
+
+let stripes = [];
+
 const basePoint = 5000;
 
 const accValue = {
@@ -68,6 +75,8 @@ const accValue = {
 let nowScoreValue = 0;
 
 let missTrigger = true;
+
+let stripeTrigger = false;
 
 let jumped = false;
 
@@ -185,7 +194,6 @@ function detectAccuracy(r1, r2, arrayDirection, keyboardEvent) {
         } else if (Math.abs(vx) < combinedHalfWidths * 0.05 && !keyboardEvent) {
             hit = 'miss';
             girlHit = true;
-            console.log('gotten')
         } else {
             hit = false;
         }
@@ -203,9 +211,9 @@ function detectAccuracy(r1, r2, arrayDirection, keyboardEvent) {
     return hit;
 };
 
-function detectStripeAcc(r1, r2) {
+function detectStripeAcc(r1, r2, arrayDirection, keyboardEvent) {
 
-    let fx, lx;
+    let fx, lx, hit;
     let detectLongPress = false;
 
     r1.centerX = r1.x + r1.width / 2;
@@ -216,30 +224,67 @@ function detectStripeAcc(r1, r2) {
     fx = r1.centerX - r2.x;
     lx = r1.centerX - r2.lastX;
 
-    if(Math.abs(fx) < 50) {
-        if(kb.repeat) {
-            detectLongPress = true;
-            r2.inner.width -= 2;
+    // 給個範圍來先判定準度
+    // 判斷一次還有沒有壓
+    // 最後判定放開時間
+
+    if(arrayDirection == direction) {
+        if (Math.abs(fx) < 50 && keyboardEvent) {
+            hit = 'perfect';
+            girlHit = false;
+        } else if (Math.abs(fx) < 50 * 1.2 && keyboardEvent) {
+            hit = 'great';
+            girlHit = false;
+        } else if (Math.abs(fx) < 50 * 1.5 && keyboardEvent) {
+            hit = 'good';
+            girlHit = false;
+        } else if (Math.abs(fx) < 50 * 2 && keyboardEvent) {
+            hit = 'bad';
+            girlHit = false;
+        } else if (Math.abs(fx) < 50 * 0.05 && !keyboardEvent) {
+            hit = 'miss';
+            r2.alpha = 0.5;
+            girlHit = true;
+        } else {
+            hit = false;
+        }
+
+        if(Math.abs(lx) < 50 && !kb.repeat) {
+            //這裡判定尾端準度
+            console.log("test")
+        }
+
+        stripeTrigger = true;
+
+        if(!kb.repeat && stripeTrigger) {
+            // 如果放掉了就無法連續
+            stripeTrigger = false;
+            r2.vx = speed;
+        }
+
+        if(kb.repeat && stripeTrigger) {
+            // 如果有按住的話，就會縮短
+            r2.inner.width -= 10;
             r2.vx = 0;
             if(r2.inner.width <= 0) {
                 r2.inner.width = 0;
                 r2.removeChild(r2.inner);
                 r2.inner.clear();
             }
-            //這裡判定前端準度
-        } else {
+        }
+    }else {
+        if (Math.abs(fx) < 50 * 0.05) {
+            hit = 'miss';
             r2.alpha = 0.5;
-            r2.vx = 5;
+        } else {
+          //There's no collision on the x axis
+          hit = false;
         }
     }
 
-    if(Math.abs(lx) < 50 && detectLongPress) {
-        //這裡判定尾端準度
-        // console.log("last")
-        detectLongPress = false;
-        if(!kb.repeat) return
-    }
-    // console.log(r2.x, r2.width, r2.lastX)
+    
+
+    return hit
 }
 
 
@@ -362,19 +407,24 @@ function onFullscreenChange(e) {
 }
 
 function createStripe() {
-    let stripe = new Container();
-    stripe.vx = speed;
-    stripe.x = xOffset;
-    stripe.y = 115;
-    landscape.addChild(stripe);
 
-    let innerStripe = new PIXI.Graphics;
-    innerStripe.beginFill(0xDE3249);
-    innerStripe.drawRect(0, 0, 100, 30); // x, y, width, height
-    innerStripe.endFill;
-
-    stripe.addChild(innerStripe);
-    stripe.inner = innerStripe;
+    for(let i = 0; i < numberOfZomble; i ++) {
+        let stripe = new Container();
+        stripe.vx = speed;
+        stripe.x = xOffset + i * spacing;
+        stripe.y = 115;
+        landscape.addChild(stripe);
+    
+        let innerStripe = new PIXI.Graphics;
+        innerStripe.beginFill(0xDE3249);
+        innerStripe.drawRect(0, 0, 100, 30); // x, y, width, height
+        innerStripe.endFill;
+    
+        stripe.addChild(innerStripe);
+        stripe.inner = innerStripe;
+    
+        stripes.push(stripe);
+    }
 }
 
 function setup() {
@@ -473,11 +523,6 @@ function setup() {
 
     catchPoints.bottom = bottomPoint;
 
-    let numberOfZomble = 50,
-    spacing = 200,
-    xOffset = 512,
-    speed = 5;
-
     accuracy = new PIXI.Text('', accuracyStyle);
 	accuracy.x = 195;
 	accuracy.y = 50;
@@ -548,6 +593,8 @@ function setup() {
         landscape.addChild(zombie);
     }
 
+    createStripe();
+    
 
     kb = new keyboroad();
     kb.watch();
@@ -655,6 +702,12 @@ function updateScore() {
     }
 }
 
+function stripeAction() {
+    stripes.forEach((stripe) => {
+        stripe.x -= stripe.vx;
+        detectStripeAcc(girl, stripe);
+    })
+}
 
 function play(delta) {
     farBuild.tilePosition.x -= 0.128;
@@ -662,9 +715,7 @@ function play(delta) {
 
     // monsterAction(topZombies, 'up', kb.pressed.ArrowUp);
     // monsterAction(bottomZombies, 'down', kb.pressed.ArrowDown);
-
-    stripe.x -= stripe.vx;
-    detectStripeAcc(girl, stripe);
+    stripeAction();
 
     recoredLastofCombo();
     numofCombo.text = hitNumber.combo;
@@ -699,7 +750,6 @@ function play(delta) {
         }
     }
 
-    console.log(kb.repeat)
 
     if (girl.y <= 80 && kb.repeat == true) {
         // 常壓的時候就固定在上面
