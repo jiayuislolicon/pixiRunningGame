@@ -30,8 +30,8 @@ svg {
 }
 
 canvas {
-    width: 100vw;
-    height: calc(100vw * 288 / 512);
-    max-width: 800px;
-    max-height: 450px;
+    width: calc(100vw - 50px);
+    height: calc((100vw - 50px) * 288 / 512);
+    max-width: 1024px;
+    max-height: 576px;
 }
