@@ -1,5 +1,5 @@
-import { fromEvent, merge } from 'rxjs';
-import { distinctUntilChanged, groupBy, map, mergeAll, filter } from 'rxjs/operators';
+import { fromEvent, interval, merge, scheduled } from 'rxjs';
+import { distinctUntilChanged, map, filter, withLatestFrom, startWith, scan } from 'rxjs/operators';
 import * as PIXI from 'pixi.js'
 import initialState from './state';
 import Entity from './entity';
@@ -23,75 +23,64 @@ export default class Controller {
         }
     }
     addEvent() {
+        const keyDowns = fromEvent(document, 'keydown');
+        const keyUps = fromEvent(document, 'keyup');
 
-        const keyDownPress = fromEvent(document, 'keydown')
-        .pipe (
-            filter(e => !e.repeat),
-            map(e => {
-                switch (e.keyCode) {
-                    case KEYCODE.up:
-                        return 1
-                    case KEYCODE.down:
-                        return -1
-                    default:
-                        return -1
-                }
+        const keyDownPress = keyDowns
+            .pipe (
+                filter(e => !e.repeat),
+                map(e => {
+                    switch (e.keyCode) {
+                        case KEYCODE.up:
+                            return -1
+                        case KEYCODE.down:
+                            return 1
+                    }
+                })
+            )
+        
+
+        const keyUpPress = keyUps
+            .pipe (
+                filter(e => !e.repeat),
+                map(() => 1)
+            )
+        
+        const directionValue = merge(keyDownPress, keyUpPress)
+        .pipe(
+            startWith(1),
+            distinctUntilChanged()
+        )
+
+        const ticker = interval(0, scheduled.requestAnimationFrame)
+
+        const roleState = ticker
+            .pipe(
+                withLatestFrom(directionValue),
+                scan(({mainRole}, [ticker, directionValue]) => {
+                    switch (directionValue) {
+                        case -1:
+                            mainRole.vy = -20;
+                            mainRole.side = 'bottom';
+                            mainRole.ani = 'Run';
+                            break;
+                        case 1:
+                            mainRole.vy = 20;
+                            mainRole.side = 'top';
+                            mainRole.ani = 'Run';
+                            break;
+                        default:
+                    }
+                    return {mainRole}
+                }, initialState)
+            )
+
+        ticker
+            .pipe (
+                withLatestFrom(roleState)
+            )
+            .subscribe(([ticker, state]) => {
+              this.mainRole.update(state)
             })
-        )
-        .subscribe(console.log)
-
-        const keyUpPress = fromEvent(document, 'keyup')
-        .pipe (
-            filter(e => !e.repeat),
-            map(() => -1)
-        )
-        .subscribe(console.log)
-
-        // const keyup = Rx.Observable
-        // .fromEvent(document, 'keyup', e => {
-        //     switch (e.keyCode) {
-        //         case KEYCODE.up:
-        //             return 1
-        //         case KEYCODE.down:
-        //             return -1
-        //         default:
-        //     }
-        // })
-        // .withLatestFrom(keydown)
-        // .filter(([keyup, keydown]) => keyup == keydown)
-        // .map(() => 0);
-
-        // const inputKeyValue = Rx.Observable
-        // .merge(keydown, keyup)
-        // .startWith(0)
-        // .distinctUntilChanged();
-
-        // const ticker = Rx.Observable
-        // .interval(0, Rx.Scheduler.requestAnimaionFrame);
-
-        // const state = ticker
-        // .withLatestFrom(inputKeyValue)
-        // .scan(({role}, inputKeyValue) => {
-        //     switch (inputKeyValue) {
-        //         case -1:
-        //             role.vx = -1;
-        //             role.ani = 'run';
-        //             break;
-        //         case 1:
-        //             role.vx = 1;
-        //             role.ani = 'run';
-        //             break;
-        //         case 0:
-        //             role.vx = 0;
-        //             role.ani = 'run';
-        //             break;
-        //     }
-        // });
-
-        // ticker
-        // .withLatestFrom(state)
-        // .subscribe((state) => {
-        //     pixiRender.render(state, renderer)
-        // })
     }
 }

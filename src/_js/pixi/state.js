@@ -3,8 +3,11 @@ const state = {
         x: 100,
         y: 400,
         vx: 0,
-        vy: 0,
-        ani: 'run'
+        vy: 1,
+        ani: 'Run',
+        side: 'bottom',
+        maxY: 400,
+        minY: 200
     }
 }
 
