@@ -1,4 +1,5 @@
-import { Observable, Subscriber } from 'rxjs';
+import { fromEvent, merge } from 'rxjs';
+import { distinctUntilChanged, groupBy, map, mergeAll, filter } from 'rxjs/operators';
 import * as PIXI from 'pixi.js'
 import initialState from './state';
 import Entity from './entity';
@@ -23,16 +24,29 @@ export default class Controller {
     }
     addEvent() {
 
-        // const keydown = Rx.Observable
-        // .fromEvent(document, 'keydown', e => {
-        //     switch (e.keyCode) {
-        //         case KEYCODE.up:
-        //             return 1
-        //         case KEYCODE.down:
-        //             return -1
-        //         default:
-        //     }
-        // })
+        const keyDownPress = fromEvent(document, 'keydown')
+        .pipe (
+            filter(e => !e.repeat),
+            map(e => {
+                switch (e.keyCode) {
+                    case KEYCODE.up:
+                        return 1
+                    case KEYCODE.down:
+                        return -1
+                    default:
+                        return -1
+                }
+            })
+        )
+        .subscribe(console.log)
+
+        const keyUpPress = fromEvent(document, 'keyup')
+        .pipe (
+            filter(e => !e.repeat),
+            map(() => -1)
+        )
+        .subscribe(console.log)
+
         // const keyup = Rx.Observable
         // .fromEvent(document, 'keyup', e => {
         //     switch (e.keyCode) {
