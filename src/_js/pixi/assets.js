@@ -15,6 +15,8 @@ export default class Assets {
             .add('zombie', '/assets/images/zombieWalk.json', loadOptions)
             .add('deadFire', '/assets/images/dead_fire.png')
             .add('fire', '/assets/images/fire.png')
+            .add('stripe', '/assets/images/stripe.png')
+            .add('oli', '/assets/images/oli.png')
             .load(() => {
                 this.app.runners.load.run();
             });

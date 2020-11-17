@@ -2,6 +2,8 @@ import * as PIXI from 'pixi.js'
 import Assets from './assets'
 import Models from './models'
 import Controller from './controller'
+import Background from './background'
+import Trigger from './trigger'
 
 export class Application {
     constructor() {
@@ -32,6 +34,8 @@ export class Application {
         this.loader = new PIXI.Loader();
         this.addComponent((this.assets = new Assets(this)));
         this.addComponent((this.models = new Models(this)));
+        this.addComponent((this.background = new Background(this)));
+        this.addComponent((this.trigger = new Trigger(this)));
         this.addComponent((this.controller = new Controller(this)));
     }
     addComponent(comp) {
